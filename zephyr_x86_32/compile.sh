@@ -10,13 +10,16 @@ set -e
 TARGET_ROOT="$(dirname ${PWD}/${0})"
 [ -n "$KAFL_ROOT" ] || KAFL_ROOT=${PWD}
 
-SDK_URL="https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.11.3/zephyr-sdk-0.11.3-setup.run"
-
-KAFL_OPTS="-p $(nproc) -grimoire -redqueen -hammer_jmp_tables -catch_reset"
+KAFL_OPTS="-p $(nproc) -grimoire -redqueen -redq_do_simple -hammer_jmp_tables -radamsa -catch_reset"
+KAFL_OPTS="-p $(nproc) -catch_reset"
 
 # recent Zephyr uses qemu -icount and fails to boot with -enable-kvm
 #ZEPHYR_VERSION="v2.4.0"
 ZEPHYR_VERSION="v2.3.0"
+
+SDK_URL="https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.11.3/zephyr-sdk-0.11.3-setup.run"
+export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk/ # default SDK install path!
 
 function fail {
 	echo
@@ -64,18 +67,20 @@ function fetch_sdk() {
 	# This will auto-generate ~/.zephyrrc
 	wget -c -O $INSTALLER $SDK_URL
 	bash $INSTALLER
+
+	echo -e "export ZEPHYR_TOOLCHAIN_VARIANT=zephyr\nexport ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk" >> ~/.zephyrrc
 }
 
 function check_sdk() {
 
 	# fetch Zephyr and SDK if not available
+	test -d "$ZEPHYR_SDK_INSTALL_DIR" || (echo "Could not find a Zephyr SDK."; fetch_sdk)
 	test -d "$KAFL_ROOT/zephyrproject" || (echo "Could not find Zephyr."; fetch_zephyr)
 	test -f "$HOME/.zephyrrc" || (echo "Could not find Zephyr SDK."; fetch_sdk)
 
 	# check again and this time bail out on error
+	test -d "$ZEPHYR_SDK_INSTALL_DIR"  || fail "Could not find Zephyr SDK. Exit."
 	test -d "$KAFL_ROOT/zephyrproject" || fail "Could not find Zephyr install. Exit."
-
-	# activate Zephyr env
 	source "$KAFL_ROOT/zephyrproject/zephyr/zephyr-env.sh"
 
 	echo "Using Zephyr build settings:"
@@ -88,7 +93,7 @@ function build_app() {
 
 	check_sdk
 
-	if [[ -z "$ZEPHYR_TOOLCHAIN_VARIANT" ]] || [[ -z "$ZEPHYR_BASE" ]]; then
+	if [[ -z "$ZEPHYR_BASE" ]]; then
 		printf "\tError: Zephyr SDK is not active, skipping Zephyr targets!\n"
 		exit
 	fi
@@ -100,6 +105,7 @@ function build_app() {
 	test -d build && rm -rf build
    	mkdir build || fail "Could not create build/ directory. Exit."
 	cd build
+	#cmake -GNinja -DBOARD=qemu_x86_64 -DKAFL_${APP}=y ..
 	cmake -GNinja -DBOARD=qemu_x86 -DKAFL_${APP}=y ..
 	ninja
 	popd
@@ -131,7 +137,7 @@ function cov()
 {
 	pushd $KAFL_ROOT
 	TEMPDIR=$(mktemp -d -p /dev/shm)
-	WORKDIR=$1
+	WORKDIR=$1; shift
 
 	BIN=${TARGET_ROOT}/build/zephyr/zephyr.elf
 	MAP=${TARGET_ROOT}/build/zephyr/zephyr.map
@@ -154,7 +160,31 @@ function cov()
 		-kernel ${BIN} \
 		-mem 32 \
 		-work_dir $TEMPDIR \
-		-input $WORKDIR
+		-input $WORKDIR $*
+	popd
+}
+
+function gdb()
+{
+	pushd $KAFL_ROOT
+	TEMPDIR=$(mktemp -d -p /dev/shm)
+	PAYLOAD=$1; shift
+
+	BIN=${TARGET_ROOT}/build/zephyr/zephyr.elf
+	MAP=${TARGET_ROOT}/build/zephyr/zephyr.map
+	test -f $BIN -a -f $MAP || fail "Could not find Zephyr target .elf and .map files. Need to build first?"
+
+	echo
+	echo "Using temp workdir >>$TEMPDIR<<.."
+	sleep 1
+
+
+	# Note: -ip0 and other VM settings should match those used during fuzzing
+	python3 kAFL-Fuzzer/kafl_debug.py -action gdb --purge -v \
+		-kernel ${BIN} \
+		-mem 32 \
+		-work_dir $TEMPDIR \
+		-input $PAYLOAD $*
 	popd
 }
 
@@ -162,7 +192,7 @@ function noise()
 {
 	pushd $KAFL_ROOT
 	TEMPDIR=$(mktemp -d -p /dev/shm)
-	PAYLOAD=$1
+	PAYLOAD=$1; shift
 
 	BIN=${TARGET_ROOT}/build/zephyr/zephyr.elf
 	MAP=${TARGET_ROOT}/build/zephyr/zephyr.map
@@ -180,13 +210,13 @@ function noise()
 
 
 	# Note: -ip0 and other VM settings should match those used during fuzzing
-	python3 kAFL-Fuzzer/kafl_debug.py -action noise \
+	python3 kAFL-Fuzzer/kafl_debug.py -action noise --purge \
 		-v -ip0 ${ip_start}-0x${ip_end} \
 		-kernel ${BIN} \
 		-mem 32 \
 		-n 0 \
 		-work_dir $TEMPDIR \
-		-input $PAYLOAD
+		-input $PAYLOAD $*
 	popd
 }
 
@@ -199,8 +229,10 @@ function usage() {
 	echo Available commands:
 	echo -e "\tzephyr      - check Zephyr install, fetch and install any dependencies"
 	echo -e "\tbuild <TEST|JSON|FS>  - build the test, json or fs fuzzing sample"
-	echo -e "\trun [args]  - run the currently build sample with optional kAFL args"
-	echo -e "\tcov <dir>   - process corpus of existing workdir and collect coverage info"
+	echo -e "\trun [args]            - run the currently build sample with optional kAFL args"
+	echo -e "\tnoise <input>         - execute input many times and monitor coverage"
+	echo -e "\tdebug <input>         - execute input in debug mode (qemu gdbstub)"
+	echo -e "\tcov <dir>             - process corpus of existing workdir and collect coverage info"
 	echo
 	exit
 }
@@ -217,11 +249,15 @@ case $CMD in
 		;;
 	"cov")
 		test -d "$1" || usage
-		cov $1
+		cov $*
 		;;
 	"noise")
 		test -f "$1" || usage
-		noise "$1"
+		noise $*
+		;;
+	"debug")
+		test -f "$1" || usage
+		gdb $*
 		;;
 	"build")
 		test -n "$1" || usage

@@ -24,10 +24,13 @@ ssize_t target_entry(const char *buf, size_t len)
 	char input[INPUT_LENGTH];
 
 	if (len >= INPUT_LENGTH) {
-		return -EFAULT;
+		len = INPUT_LENGTH-1;
 	}
-	
+
 	memcpy(input, buf, len);
+	input[len] = '\0';
+	//printk("TARGET_TEST: %s\n", input);
+	
 
 	if(input[0] == 'K')
 		if(input[1] == 'E')
@@ -49,7 +52,7 @@ ssize_t target_entry(const char *buf, size_t len)
 					if(input[4] == 'E')		
 						if(input[5] == 'J') {
 							printk("BUG: SERGEJ\n");
-							k_oops();
+							k_panic();
 						}
 
 	/* memory corruption */

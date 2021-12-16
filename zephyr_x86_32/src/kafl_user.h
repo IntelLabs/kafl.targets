@@ -1,18 +1,31 @@
 /*
- * Copyright 2020 Sergej Schumilo, Cornelius Aschermann
- * Copyright 2020 Intel Corporation
- * 
- * SPDX-License-Identifier: Apache-2.0
- */ 
-
-/*
- * kAFL hypercall API, adapted from targets/kafl_user.h
+ * This file is part of kAFL.
+ *
+ * Copyright 2019 Sergej Schumilo, Cornelius Aschermann
+ * Copyright 2021 Intel Corporation
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #ifndef KAFL_USER_H
 #define KAFL_USER_H
 
+#include <stdarg.h>
+#include <stdio.h>
+
+#ifdef __MINGW64__
+#ifndef uint64_t
+#define uint64_t UINT64
+#endif
+#ifndef int32_t
+#define int32_t INT32
+#endif
+#ifndef uint8_t
+#define uint8_t UINT8
+#endif
+#else 
 #include <stdint.h>
+#endif
 
 #define HYPERCALL_KAFL_RAX_ID				0x01f
 #define HYPERCALL_KAFL_ACQUIRE				0
@@ -41,104 +54,51 @@
 #define HYPERCALL_KAFL_TIMEOUT				21
 
 #define PAYLOAD_SIZE						(128 << 10)				/* up to 128KB payloads */
-#define PROGRAM_SIZE						(128 << 20)				/* kAFL supports 128MB programm data */
 #define INFO_SIZE        					(128 << 10)				/* 128KB info string */
+
+#define HPRINTF_MAX_SIZE					0x1000					/* up to 4KB hprintf strings */
+
 
 typedef struct{
 	int32_t size;
-	uint8_t data[PAYLOAD_SIZE-sizeof(int32_t)-sizeof(uint8_t)];
-	uint8_t redqueen_mode;
+	uint8_t data[PAYLOAD_SIZE-sizeof(int32_t)];
 } kAFL_payload;
 
 typedef struct{
 	uint64_t ip[4];
 	uint64_t size[4];
 	uint8_t enabled[4];
-} kAFL_ranges;
+} kAFL_ranges; 
 
 #define KAFL_MODE_64	0
 #define KAFL_MODE_32	1
 #define KAFL_MODE_16	2
 
-//#define KAFL_SIM
-#ifndef KAFL_SIM
-static inline void kAFL_hypercall(uint32_t p1, void* p2)
+#if defined(__i386__)
+static inline void kAFL_hypercall(uint32_t p1, uint32_t p2)
 {
 	uint32_t nr = HYPERCALL_KAFL_RAX_ID;
 	asm ("vmcall"
 			: : "a"(nr), "b"(p1), "c"(p2));
 }
-#else
-static kAFL_payload *sim_payload;
-static char* sim_inputs[] = {
-	"0",
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-	"0123456789",
-	"ABCDEFG",
-	"abcdefghijklmnopqrstuvwxyz",
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-	"AAAAAAAAAAAAAAAAAA",
-	"SERGEJAFLABCDEFG",
-	"",
-	"AAAAAAAAAAAAAAAAAA",
-	"KASANABCDEFG0123",
-	"",
-	"AAAAAAAAAAAAAAAAAA",
-	"",
-	"KERNELAFLABCDEFG",
-};
-static int sim_idx = 0;
-static inline void kAFL_hypercall(uint32_t p1, void* p2)
+#elif defined(__x86_64__)
+static inline void kAFL_hypercall(uint64_t p1, uint64_t p2)
 {
-	switch(p1) {
-		case HYPERCALL_KAFL_ACQUIRE:
-			printk("hypercall: KAFL_AQUIRE()\n");
-			break;
-		case HYPERCALL_KAFL_GET_PAYLOAD:
-			printk("hypercall: KAFL_GET_PAYLOAD(%p)\n", p2);
-			sim_payload = (kAFL_payload*)p2;
-			break;
-		case HYPERCALL_KAFL_GET_PROGRAM:
-			printk("hypercall: KAFL_GET_PROGRAM()\n");
-			break;
-		case HYPERCALL_KAFL_GET_ARGV:
-			printk("hypercall: KAFL_GET_ARGV()\n");
-			break;
-		case HYPERCALL_KAFL_RELEASE:
-			printk("hypercall: KAFL_RELEASE()\n");
-			break;
-		case HYPERCALL_KAFL_SUBMIT_CR3:
-			printk("hypercall: KAFL_CR3(%p)\n", p2);
-			break;
-		case HYPERCALL_KAFL_SUBMIT_PANIC:
-			printk("hypercall: KAFL_SUBMIT_PANIC(%p)\n", p2);
-			break;
-		case HYPERCALL_KAFL_SUBMIT_KASAN:
-			printk("hypercall: KAFL_SUBMIT_KASAN(%p)\n", p2);
-			break;
-		case HYPERCALL_KAFL_PANIC:
-			printk("hypercall: KAFL_isPANIC()\n");
-			break;
-		case HYPERCALL_KAFL_KASAN:
-			printk("hypercall: KAFL_isKASAN()\n");
-			break;
-		case HYPERCALL_KAFL_LOCK:
-			printk("hypercall: KAFL_LOCK()\n");
-			break;
-		case HYPERCALL_KAFL_INFO:
-			printk("hypercall: KAFL_INFO()\n");
-			printk("%s\n", (char*)p2);
-			break;
-		case HYPERCALL_KAFL_NEXT_PAYLOAD:
-			printk("hypercall: KAFL_NEXT_PAYLOAD()\n");
-			sim_idx = (sim_idx + 1) % sizeof(*sim_inputs);
-			sim_payload->size = strlen(sim_inputs[sim_idx]);
-			memcpy(sim_payload->data, sim_inputs[sim_idx], sim_payload->size);
-			break;
-		default:
-			printk("Invalid hypercall!\n");
-	}
+	uint64_t nr = HYPERCALL_KAFL_RAX_ID;
+	asm ("vmcall"
+			: : "a"(nr), "b"(p1), "c"(p2));
 }
+#endif
 
-#endif /* KAFL_SIM */
+static void hprintf(const char * format, ...)  __attribute__ ((unused));
+static void hprintf(const char * format, ...){
+	static char hprintf_buffer[HPRINTF_MAX_SIZE] __attribute__((aligned(4096)));
+
+	va_list args;
+	va_start(args, format);
+	vsnprintk((char*)hprintf_buffer, HPRINTF_MAX_SIZE, format, args);
+	//printf("%s", hprintf_buffer);
+	kAFL_hypercall(HYPERCALL_KAFL_PRINTF, (uintptr_t)hprintf_buffer);
+	va_end(args);
+}
 #endif /* KAFL_USER_H */
