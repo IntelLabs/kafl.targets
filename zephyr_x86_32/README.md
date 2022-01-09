@@ -1,31 +1,37 @@
 # Zephyr agent
 
-## Zephyr Fuzzing
-
 This folder contains example agents and helper scripts to get started with
 fuzzing Zephyr with kAFL.
 
-All of the below steps are captured in the `compile.sh` helper script, so the
-below notes are only relevant for context, in case the script does not work or
-if you want to run your own RTOS/FW image in kAFL.
+## Quick Start
 
-All scripts are meant to be called from the kAFL root:
+The [run.sh](run.sh) helper script encapsulates the main use cases for download, build,
+fuzzing, as well as coverage and debug execution of a Zephyr target inside kAFL.
 
-```
-./targets/zephyr_x86_32/compile.sh zephyr
-./targets/zephyr_x86_32/compile.sh build TEST
-./targets/zephyr_x86_32/compile.sh run -v -redqueen -p 2
-./targets/zephyr_x86_32/compile.sh cov $workdir
-```
+It is meant to run from the kAFL root folder, like so:
 
-All status and output is written to a temporary work dir in /dev/shm/kafl_zephyr by default.
-Follow the main kAFL Readme to view the status in a separate terminal:
+- `./targets/zephyr_x86_32/run.sh zephyr` - fetch dependencies and install Zephyr
+- `./targets/zephyr_x86_32/run.sh build TEST` - build the `TEST` application
+- `./targets/zephyr_x86_32/run.sh fuzz -redqueen -p 2` fuzz the currently build application
 
-```
-python3 kAFL-Fuzzer/kafl_gui.py /dev/shm/kafl_zephyr
-python3 kAFL-Fuzzer/kafl_plot.py /dev/shm/kafl_zephyr
-gnuplot -c ~/kafl/tools/stats.plot $workdir/stats.csv
-```
+
+By default, the helper script launches the fuzzer with a temporary work directory in `/dev/shm/kafl_zephyr`.
+You can inspect the fuzzer output manually or using available status tools:
+
+- `WORKDIR=/dev/shm/kafl_zephyr` - output of a kAFL session
+- `python3 kAFL-Fuzzer/kafl_gui.py $WORKDIR` - launch interactive text UI
+- `python3 kAFL-Fuzzer/kafl_plot.py $WORKDIR` - plot payloads discovered over time
+- `gnuplot -c ~/kafl/tools/stats.plot $WORKDIR/stats.csv` - plot fuzzer status
+
+
+The helper includes some additional typical use cases (run after fuzzing is done):
+
+- `./targets/zephyr_x86_32/run.sh cov $WORKDIR` - collect coverage information
+- `./targets/zephyr_x86_32/run.sh debug $WORKDIR/corpus/crash/payload_00001` - launch first crashing input in a debug session
+
+
+Refer to additional notes below and the script itself to
+customize for your target application/usage.
 
 ## Zephyr RTOS + SDK Install
 
@@ -80,7 +86,7 @@ $ bash zephyr-sdk-0.11.2-setup.run
 $ source zephyr-env.sh
 ```
 
-Note that for the provided script [compile.sh](https://github.com/IntelLabs/kAFL/blob/master/targets/zephyr_x86_32/compile.sh)
+Note that for the provided script [run.sh](run.sh)
 to work, you have to install the zephyr-SDK to the default directory (`$HOME/zephyr-sdk/`)
 and create a `.zephyrrc` file in the `$HOME` directory.
 

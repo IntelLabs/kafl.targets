@@ -7,31 +7,40 @@
 #
 set -e
 
-TARGET_ROOT="$(dirname ${PWD}/${0})"
-[ -n "$KAFL_ROOT" ] || KAFL_ROOT=${PWD}
+SCRIPT_ROOT="$(dirname "$(realpath "$0")")"
 
 KAFL_OPTS="-p $(nproc) -grimoire -redqueen -redq_do_simple -hammer_jmp_tables -radamsa -catch_reset"
-KAFL_OPTS="-p $(nproc) -catch_reset"
+KAFL_OPTS="-p $(nproc) -grimoire -redqueen"
 
 # recent Zephyr uses qemu -icount and fails to boot with -enable-kvm
 #ZEPHYR_VERSION="v2.4.0"
 ZEPHYR_VERSION="v2.3.0"
 
+# default toolchain setup
 SDK_URL="https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.11.3/zephyr-sdk-0.11.3-setup.run"
 export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
-export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk/ # default SDK install path!
+export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk/
 
 function fail {
 	echo
 	echo -e "$1"
 	echo
-	exit
+	exit 1
+}
+
+get_env() {
+	eval `west env`
+	export LD_PRELOAD_PATH
+
+	KAFL_ROOT=$(west path kafl 2>/dev/null)
+	# will fail before west manifest update
+	ZEPHYR_BASE=$(west path zephyr 2>/dev/null)
 }
 
 function fetch_zephyr() {
-	echo -e "\nInstalling Zephyr to $KAFL_ROOT/zephyrproject.\n\n\tHit Enter to install or ctrl-c to abort."
+	echo -e "\nAttempting to fetch Zephyr and dependencies using sudo apt, west update, and pip3.\n\n\tHit Enter to continue or ctrl-c to abort."
 	read
-	echo "[-] Fetching dependencies.."
+	echo "[*] Fetching dependencies.. (sudo apt)"
 	# https://docs.zephyrproject.org/latest/getting_started/installation_linux.html
 	sudo apt-get update
 	sudo apt-get upgrade
@@ -43,55 +52,50 @@ function fetch_zephyr() {
 	# missing deps on Ubuntu?
 	sudo apt-get install python3-pyelftools
 
-	# use west to fetch Zephyr
-	pip3 install --user west
-	which west || fail "Error: ~/.local/bin not in \$PATH?"
+	echo "[*] Fetching Zephyr repos.. (west update -k)"
+	# Zephyr also uses West. Need to add it as an `import` :-/
+	ln -s $SCRIPT_ROOT/zephyr.yml $KAFL_ROOT/.submanifests/zephyr.yml
 
-	echo "[-] Fetching Zephyr components.."
-	pushd $KAFL_ROOT
-	west init --mr $ZEPHYR_VERSION zephyrproject
-	cd zephyrproject
-	west update
-	pip3 install --user -r zephyr/scripts/requirements.txt
-	popd
+	# fetch Zephyr project using west and add any python dependencies
+	west update -k
+	get_env
+	test -d "$ZEPHYR_BASE" || fail "Failed to add Zephyr to west workspace. Exit."
+
+	echo "[*] Fetching Zephyr python deps.. (pip3 install)"
+	pip3 install --user -r $ZEPHYR_BASE/scripts/requirements.txt
 }
 
 function fetch_sdk() {
 
 	# Download Zephyr SDK. Not pretty.
-	pushd $KAFL_ROOT
-	INSTALLER=$(basename $SDK_URL)
+	get_env
+	INSTALLER=$ZEPHYR_BASE/$(basename $SDK_URL)
 
 	echo -e "\nAttempting to fetch and execute Zephyr SDK installer from\n$SDK_URL\n\n\tHit Enter to continue or ctrl-c to abort."
 	read
-	# This will auto-generate ~/.zephyrrc
 	wget -c -O $INSTALLER $SDK_URL
 	bash $INSTALLER
-
-	echo -e "export ZEPHYR_TOOLCHAIN_VARIANT=zephyr\nexport ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk" >> ~/.zephyrrc
 }
 
-function check_sdk() {
-
+function fetch_deps() {
 	# fetch Zephyr and SDK if not available
-	test -d "$ZEPHYR_SDK_INSTALL_DIR" || (echo "Could not find a Zephyr SDK."; fetch_sdk)
-	test -d "$KAFL_ROOT/zephyrproject" || (echo "Could not find Zephyr."; fetch_zephyr)
-	test -f "$HOME/.zephyrrc" || (echo "Could not find Zephyr SDK."; fetch_sdk)
+	test -d "$ZEPHYR_BASE" || (echo "Could not find Zephyr in current west workspace."; fetch_zephyr)
+	test -d "$ZEPHYR_SDK_INSTALL_DIR" || (echo "Could not find Zephyr SDK."; fetch_sdk)
 
-	# check again and this time bail out on error
+}
+
+function check_deps() {
+	test -d "$ZEPHYR_BASE" || fail "Could not find Zephyr install. Exit."
 	test -d "$ZEPHYR_SDK_INSTALL_DIR"  || fail "Could not find Zephyr SDK. Exit."
-	test -d "$KAFL_ROOT/zephyrproject" || fail "Could not find Zephyr install. Exit."
-	source "$KAFL_ROOT/zephyrproject/zephyr/zephyr-env.sh"
 
-	echo "Using Zephyr build settings:"
-	echo " ZEPHYR_BASE=$ZEPHYR_BASE"
-	echo " ZEPHYR_SDK_INSTALL_DIR=$ZEPHYR_SDK_INSTALL_DIR"
-	echo " ZEPHYR_TOOLCHAIN_VARIANT=$ZEPHYR_TOOLCHAIN_VARIANT"
+	echo -e "# Detected Zephyr environment:"
+	echo "ZEPHYR_BASE=$ZEPHYR_BASE"
+	echo "ZEPHYR_SDK_INSTALL_DIR=$ZEPHYR_SDK_INSTALL_DIR"
+	echo "ZEPHYR_TOOLCHAIN_VARIANT=$ZEPHYR_TOOLCHAIN_VARIANT"
+	export ZEPHYR_BASE
 }
 
 function build_app() {
-
-	check_sdk
 
 	if [[ -z "$ZEPHYR_BASE" ]]; then
 		printf "\tError: Zephyr SDK is not active, skipping Zephyr targets!\n"
@@ -101,7 +105,7 @@ function build_app() {
 	# select target app / variant
 	APP=$1; shift
 
-	pushd $TARGET_ROOT
+	pushd $SCRIPT_ROOT
 	test -d build && rm -rf build
    	mkdir build || fail "Could not create build/ directory. Exit."
 	cd build
@@ -111,11 +115,11 @@ function build_app() {
 	popd
 }
 
-function run() {
+function fuzz() {
 	pushd $KAFL_ROOT
 
-	BIN=${TARGET_ROOT}/build/zephyr/zephyr.elf
-	MAP=${TARGET_ROOT}/build/zephyr/zephyr.map
+	BIN=${SCRIPT_ROOT}/build/zephyr/zephyr.elf
+	MAP=${SCRIPT_ROOT}/build/zephyr/zephyr.map
 	test -f $BIN -a -f $MAP || fail "Could not find Zephyr target .elf and .map files. Need to build first?"
 
 	range=$(grep -A 1 ^text "$MAP" |xargs |cut -d\  -f 2,3)
@@ -129,7 +133,7 @@ function run() {
 		-kernel ${BIN} \
 		-mem 32 \
 		-work_dir /dev/shm/kafl_zephyr \
-		-seed_dir $TARGET_ROOT/seeds/ \
+		-seed_dir $SCRIPT_ROOT/seeds/ \
 		--purge $KAFL_OPTS $*
 }
 
@@ -139,8 +143,8 @@ function cov()
 	TEMPDIR=$(mktemp -d -p /dev/shm)
 	WORKDIR=$1; shift
 
-	BIN=${TARGET_ROOT}/build/zephyr/zephyr.elf
-	MAP=${TARGET_ROOT}/build/zephyr/zephyr.map
+	BIN=${SCRIPT_ROOT}/build/zephyr/zephyr.elf
+	MAP=${SCRIPT_ROOT}/build/zephyr/zephyr.map
 	test -f $BIN -a -f $MAP || fail "Could not find Zephyr target .elf and .map files. Need to build first?"
 
 	range=$(grep -A 1 ^text "$MAP" |xargs |cut -d\  -f 2,3)
@@ -170,8 +174,8 @@ function gdb()
 	TEMPDIR=$(mktemp -d -p /dev/shm)
 	PAYLOAD=$1; shift
 
-	BIN=${TARGET_ROOT}/build/zephyr/zephyr.elf
-	MAP=${TARGET_ROOT}/build/zephyr/zephyr.map
+	BIN=${SCRIPT_ROOT}/build/zephyr/zephyr.elf
+	MAP=${SCRIPT_ROOT}/build/zephyr/zephyr.map
 	test -f $BIN -a -f $MAP || fail "Could not find Zephyr target .elf and .map files. Need to build first?"
 
 	echo
@@ -194,8 +198,8 @@ function noise()
 	TEMPDIR=$(mktemp -d -p /dev/shm)
 	PAYLOAD=$1; shift
 
-	BIN=${TARGET_ROOT}/build/zephyr/zephyr.elf
-	MAP=${TARGET_ROOT}/build/zephyr/zephyr.map
+	BIN=${SCRIPT_ROOT}/build/zephyr/zephyr.elf
+	MAP=${SCRIPT_ROOT}/build/zephyr/zephyr.map
 	test -f $BIN -a -f $MAP || fail "Could not find Zephyr target .elf and .map files. Need to build first?"
 
 	range=$(grep -A 1 ^text "$MAP" |xargs |cut -d\  -f 2,3)
@@ -227,9 +231,9 @@ function usage() {
 	echo "Usage: $0 <cmd> <args>"
 	echo
 	echo Available commands:
-	echo -e "\tzephyr      - check Zephyr install, fetch and install any dependencies"
+	echo -e "\tzephyr                - install Zephyr SDK, or display detected setup"
 	echo -e "\tbuild <TEST|JSON|FS>  - build the test, json or fs fuzzing sample"
-	echo -e "\trun [args]            - run the currently build sample with optional kAFL args"
+	echo -e "\tfuzz [args]           - fuzz the currently build sample with optional kAFL args"
 	echo -e "\tnoise <input>         - execute input many times and monitor coverage"
 	echo -e "\tdebug <input>         - execute input in debug mode (qemu gdbstub)"
 	echo -e "\tcov <dir>             - process corpus of existing workdir and collect coverage info"
@@ -240,12 +244,15 @@ function usage() {
 
 CMD=$1; shift || usage
 
+get_env
+
 case $CMD in
 	"zephyr")
-		check_sdk
+		fetch_deps
+		check_deps
 		;;
-	"run")
-		run $*
+	"fuzz")
+		fuzz $*
 		;;
 	"cov")
 		test -d "$1" || usage
@@ -261,6 +268,7 @@ case $CMD in
 		;;
 	"build")
 		test -n "$1" || usage
+		check_deps
 		build_app $1
 		;;
 	*)

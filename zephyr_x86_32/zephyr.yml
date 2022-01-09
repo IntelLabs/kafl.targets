@@ -1,0 +1,13 @@
+# West sub-manifest - to include Zephyr repos at option
+manifest:
+
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v2.3.0
+      import:
+        path-prefix: zephyrproject
