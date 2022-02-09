@@ -7,8 +7,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifndef KAFL_USER_H
-#define KAFL_USER_H
+#ifndef NYX_API_H
+#define NYX_API_H
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -76,7 +76,6 @@
 #define HYPERCALL_KAFL_NESTED_RELEASE		(3 | HYPERTRASH_HYPERCALL_MASK)
 #define HYPERCALL_KAFL_NESTED_HPRINTF		(4 | HYPERTRASH_HYPERCALL_MASK)gre
 
-#define PAYLOAD_SIZE						(128 << 10)				/* up to 128KB payloads */
 #define HPRINTF_MAX_SIZE					0x1000					/* up to 4KB hprintf strings */
 
 #define KAFL_MODE_64	0
@@ -85,7 +84,7 @@
 
 typedef struct {
 	int32_t size;
-	uint8_t data[PAYLOAD_SIZE-sizeof(int32_t)];
+	uint8_t data[];
 } kAFL_payload;
 
 typedef struct {
@@ -114,7 +113,8 @@ static inline uint64_t kAFL_hypercall(uint64_t p1, uint64_t p2)
 }
 #endif
 
-static void habort(char* msg) {
+static void habort(char* msg) __attribute__ ((unused));
+static void habort(char* msg){
 	kAFL_hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)msg);
 }
 
@@ -130,20 +130,33 @@ static void hprintf(const char * format, ...){
 	va_end(args);
 }
 
+#define NYX_HOST_MAGIC  0x4878794e
+#define NYX_AGENT_MAGIC 0x4178794e
+
+#define NYX_HOST_VERSION 1
+#define NYX_AGENT_VERSION 1
+
 typedef struct host_config_s {
+	uint32_t host_magic;
+	uint32_t host_version;
 	uint32_t bitmap_size;
 	uint32_t ijon_bitmap_size;
 	uint32_t payload_buffer_size;
+	uint32_t worker_id;
 	/* more to come */
 } __attribute__((packed)) host_config_t;
 
 typedef struct agent_config_s {
+	uint32_t agent_magic;
+	uint32_t agent_version;
 	uint8_t agent_timeout_detection;
 	uint8_t agent_tracing;
 	uint8_t agent_ijon_tracing;
 	uint8_t agent_non_reload_mode;
 	uint64_t trace_buffer_vaddr;
 	uint64_t ijon_trace_buffer_vaddr;
+	uint32_t coverage_bitmap_size;
+	uint32_t input_buffer_size;
 	uint8_t dump_payloads; /* set by hypervisor */
 	/* more to come */
 } __attribute__((packed)) agent_config_t;
@@ -161,4 +174,4 @@ typedef struct req_data_bulk_s {
 	uint64_t addresses[479];
 } req_data_bulk_t;
 
-#endif /* KAFL_USER_H */
+#endif /* NYX_API_H */
