@@ -10,7 +10,7 @@ set -e
 SCRIPT_ROOT="$(dirname "$(realpath "$0")")"
 
 KAFL_OPTS="-p $(nproc) -grimoire -redqueen -redq_do_simple -hammer_jmp_tables -radamsa -catch_reset"
-KAFL_OPTS="-p $(nproc) -grimoire -redqueen"
+KAFL_OPTS="-p $(nproc) -grimoire -redqueen -t 1 -ts 0.05"
 
 # recent Zephyr uses qemu -icount and fails to boot with -enable-kvm
 #ZEPHYR_VERSION="v2.4.0"
@@ -29,9 +29,6 @@ function fail {
 }
 
 get_env() {
-	eval `west env`
-	export LD_PRELOAD_PATH
-
 	KAFL_ROOT=$(west path kafl 2>/dev/null)
 	# will fail before west manifest update
 	ZEPHYR_BASE=$(west path zephyr 2>/dev/null)
@@ -62,7 +59,7 @@ function fetch_zephyr() {
 	test -d "$ZEPHYR_BASE" || fail "Failed to add Zephyr to west workspace. Exit."
 
 	echo "[*] Fetching Zephyr python deps.. (pip3 install)"
-	pip3 install --user -r $ZEPHYR_BASE/scripts/requirements.txt
+	pip3 install -r $ZEPHYR_BASE/scripts/requirements.txt
 }
 
 function fetch_sdk() {
