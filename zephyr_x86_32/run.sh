@@ -30,11 +30,13 @@ function fail {
 
 get_env() {
 	KAFL_ROOT=$(west path kafl 2>/dev/null)
-	# will fail before west manifest update
-	ZEPHYR_BASE=$(west path zephyr 2>/dev/null)
+	# may fail on missing / disabled zephyr install
+	ZEPHYR_BASE=$(west path zephyr 2>/dev/null) || true
 }
 
 function fetch_zephyr() {
+	get_env
+	test -d "$ZEPHYR_BASE" && (echo "ZEPHYR_BASE is already set. Skipping install."; return)
 	echo -e "\nAttempting to fetch Zephyr and dependencies using sudo apt, west update, and pip3.\n\n\tHit Enter to continue or ctrl-c to abort."
 	read
 	echo "[*] Fetching dependencies.. (sudo apt)"
@@ -51,7 +53,7 @@ function fetch_zephyr() {
 
 	echo "[*] Fetching Zephyr repos.. (west update -k)"
 	# Zephyr also uses West. Need to add it as an `import` :-/
-	ln -s $SCRIPT_ROOT/zephyr.yml $KAFL_ROOT/.submanifests/zephyr.yml
+	ln -sf $SCRIPT_ROOT/zephyr.yml $KAFL_ROOT/.submanifests/zephyr.yml
 
 	# fetch Zephyr project using west and add any python dependencies
 	west update -k
@@ -63,6 +65,7 @@ function fetch_zephyr() {
 }
 
 function fetch_sdk() {
+	test -d "$ZEPHYR_SDK_INSTALL_DIR" && (echo "ZEPHYR_SDK_INSTALL_DIR is already set. Skipping install."; return)
 
 	# Download Zephyr SDK. Not pretty.
 	get_env
@@ -78,7 +81,6 @@ function fetch_deps() {
 	# fetch Zephyr and SDK if not available
 	test -d "$ZEPHYR_BASE" || (echo "Could not find Zephyr in current west workspace."; fetch_zephyr)
 	test -d "$ZEPHYR_SDK_INSTALL_DIR" || (echo "Could not find Zephyr SDK."; fetch_sdk)
-
 }
 
 function check_deps() {
@@ -245,7 +247,10 @@ get_env
 
 case $CMD in
 	"zephyr")
-		fetch_deps
+		fetch_zephyr
+		fetch_sdk
+		# re-scan + report
+		get_env
 		check_deps
 		;;
 	"fuzz")
