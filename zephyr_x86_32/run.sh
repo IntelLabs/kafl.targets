@@ -9,8 +9,7 @@ set -e
 
 SCRIPT_ROOT="$(dirname "$(realpath "$0")")"
 
-KAFL_OPTS="-p $(nproc) -grimoire -redqueen -redq_do_simple -hammer_jmp_tables -radamsa -catch_reset"
-KAFL_OPTS="-p $(nproc) -grimoire -redqueen -t 1 -ts 0.05"
+KAFL_OPTS="-p $(nproc) --grimoire --redqueen -t 1 -ts 0.05"
 
 # recent Zephyr uses qemu -icount and fails to boot with -enable-kvm
 #ZEPHYR_VERSION="v2.4.0"
@@ -127,12 +126,12 @@ function fuzz() {
 
 	echo "IP filter range: $ip_start-0x$ip_end"
 
-	python3 kAFL-Fuzzer/kafl_fuzz.py \
+	python3 kafl_fuzz.py \
 		-ip0 ${ip_start}-0x${ip_end} \
-		-kernel ${BIN} \
-		-mem 32 \
-		-work_dir /dev/shm/kafl_zephyr \
-		-seed_dir $SCRIPT_ROOT/seeds/ \
+		--kernel ${BIN} \
+		--memory 32 \
+		--work-dir /dev/shm/kafl_zephyr \
+		--seed-dir $SCRIPT_ROOT/seeds/ \
 		--purge $KAFL_OPTS $*
 }
 
@@ -158,12 +157,12 @@ function cov()
 
 
 	# Note: -ip0 and other VM settings should match those used during fuzzing
-	python3 kAFL-Fuzzer/kafl_cov.py \
+	python3 kafl_cov.py \
 		-v -ip0 ${ip_start}-0x${ip_end} \
-		-kernel ${BIN} \
-		-mem 32 \
-		-work_dir $TEMPDIR \
-		-input $WORKDIR $*
+		--kernel ${BIN} \
+		--memory 32 \
+		--work-dir $TEMPDIR \
+		--input $WORKDIR $*
 	popd
 }
 
@@ -183,11 +182,11 @@ function gdb()
 
 
 	# Note: -ip0 and other VM settings should match those used during fuzzing
-	python3 kAFL-Fuzzer/kafl_debug.py -action gdb --purge -v \
-		-kernel ${BIN} \
-		-mem 32 \
-		-work_dir $TEMPDIR \
-		-input $PAYLOAD $*
+	kafl_debug.py --action gdb --purge -v \
+		--kernel ${BIN} \
+		--memory 32 \
+		--work-dir $TEMPDIR \
+		--input $PAYLOAD $*
 	popd
 }
 
@@ -213,13 +212,13 @@ function noise()
 
 
 	# Note: -ip0 and other VM settings should match those used during fuzzing
-	python3 kAFL-Fuzzer/kafl_debug.py -action noise --purge \
+	kafl_debug.py --action noise --purge \
 		-v -ip0 ${ip_start}-0x${ip_end} \
-		-kernel ${BIN} \
-		-mem 32 \
+		--kernel ${BIN} \
+		--memory 32 \
 		-n 0 \
-		-work_dir $TEMPDIR \
-		-input $PAYLOAD $*
+		--work-dir $TEMPDIR \
+		--input $PAYLOAD $*
 	popd
 }
 
