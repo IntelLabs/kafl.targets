@@ -1,37 +1,41 @@
-# Zephyr agent
+# kAFL for Zephyr Example
 
 This folder contains example agents and helper scripts to get started with
 fuzzing Zephyr with kAFL.
 
-## Quick Start
+## Quick Steps
 
 The [run.sh](run.sh) helper script encapsulates the main use cases for download, build,
 fuzzing, as well as coverage and debug execution of a Zephyr target inside kAFL.
 
 It is meant to run from the kAFL root folder, like so:
 
-- `./targets/zephyr_x86_32/run.sh zephyr` - fetch dependencies and install Zephyr
-- `./targets/zephyr_x86_32/run.sh build TEST` - build the `TEST` application
-- `./targets/zephyr_x86_32/run.sh fuzz -redqueen -p 2` fuzz the currently build application
+```
+./examples/zephyr_x86_32/run.sh zephyr       # fetch dependencies and install Zephyr (large!)
+./examples/zephyr_x86_32/run.sh build TEST   # build the `TEST` application
+./examples/zephyr_x86_32/run.sh fuzz -p 2    # fuzz the currently build application
+```
 
+By default, the fuzzer is launched with a temporary work directory in `/dev/shm/kafl_zephyr`
+and only prints limited status updates to the console. You can inspect the status of an
+ongoing or finished campaign using a number of tools:
 
-By default, the helper script launches the fuzzer with a temporary work directory in `/dev/shm/kafl_zephyr`.
-You can inspect the fuzzer output manually or using available status tools:
+```
+WORKDIR=/dev/shm/kafl_zephyr # fuzzer workdir
+kafl_gui.py $WORKDIR         # interactive UI
+kafl_plot.py $WORKDIR        # print payloads discovered over time
+gnuplot -c $KAFL_ROOT/scripts/stats.plot $WORKDIR/stats.csv # plot fuzzer status
+mcat.py $KAFL_ROOT/config    # view detailed fuzzer configuration
+```
 
-- `WORKDIR=/dev/shm/kafl_zephyr` - output of a kAFL session
-- `python3 kAFL-Fuzzer/kafl_gui.py $WORKDIR` - launch interactive text UI
-- `python3 kAFL-Fuzzer/kafl_plot.py $WORKDIR` - plot payloads discovered over time
-- `gnuplot -c ~/kafl/tools/stats.plot $WORKDIR/stats.csv` - plot fuzzer status
+The launch script encapsulates some more typical use cases (execute based on existing workdir!):
 
-
-The helper includes some additional typical use cases (run after fuzzing is done):
-
-- `./targets/zephyr_x86_32/run.sh cov $WORKDIR` - collect coverage information
-- `./targets/zephyr_x86_32/run.sh debug $WORKDIR/corpus/crash/payload_00001` - launch first crashing input in a debug session
-
-
-Refer to additional notes below and the script itself to
-customize for your target application/usage.
+```
+# collect coverage information
+./examples/zephyr_x86_32/run.sh cov $WORKDIR
+# launch first crashing payload in a debug session (qemu -s -S)
+./examples/zephyr_x86_32/run.sh debug $WORKDIR/corpus/crash/payload_00001
+```
 
 ## Zephyr RTOS + SDK Install
 

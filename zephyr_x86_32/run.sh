@@ -28,9 +28,8 @@ function fail {
 }
 
 get_env() {
-	KAFL_ROOT=$(west path kafl 2>/dev/null)
 	# may fail on missing / disabled zephyr install
-	ZEPHYR_BASE=$(west path zephyr 2>/dev/null) || true
+	ZEPHYR_BASE=$(west list -f {abspath} zephyr 2>/dev/null) || true
 }
 
 function fetch_zephyr() {
@@ -52,7 +51,7 @@ function fetch_zephyr() {
 
 	echo "[*] Fetching Zephyr repos.. (west update -k)"
 	# Zephyr also uses West. Need to add it as an `import` :-/
-	ln -sf $SCRIPT_ROOT/zephyr.yml $KAFL_ROOT/.submanifests/zephyr.yml
+	ln -sf $SCRIPT_ROOT/zephyr.yml $WORKSPACE/manifest/imports/zephyr.yml
 
 	# fetch Zephyr project using west and add any python dependencies
 	west update -k
