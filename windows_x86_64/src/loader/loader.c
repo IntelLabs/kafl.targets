@@ -21,7 +21,7 @@ along with QEMU-PT.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <windows.h>
 #include <stdio.h>
-#include "kafl_user.h"
+#include "../../../nyx_api.h"
 
 char target_file[MAX_PATH] = { 0 };
 

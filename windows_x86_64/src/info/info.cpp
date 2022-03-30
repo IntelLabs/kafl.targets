@@ -28,6 +28,8 @@ along with QEMU-PT.  If not, see <http://www.gnu.org/licenses/>.
 
 #define ARRAY_SIZE 1024
 
+#define INFO_SIZE                       (128 << 10)				/* 128KB info string */
+
 PCSTR ntoskrnl = "C:\\Windows\\System32\\ntoskrnl.exe";
 PCSTR kernel_func = "PsCreateSystemThread";
 
