@@ -132,6 +132,16 @@ ls $KAFL_WORKDIR/corpus/
 ls $KAFL_WORKDIR/logs/
 ```
 
+For coverage reports, find out what PT filter ranges are used for the kernel image (they are auto-detected on startup and logged using `kafl_hprintf()` - try to launch with `--log-hprintf -p 1` instead of the above `--log-crashes` and look at `$workdir/hprintf_00.log`). Then use `kafl_cov.py` with `--resume` and same workdir + input directory. This will restore the VM snapshot and use the existing page_cache info to replay corpus payloads as faithfully as possible and dump PT trace info to `$workdir/traces/*bin.lz4`. The tool will also call `ptdump` on each trace to directly decode it to `$workdir/traces/*.txt.lz4`. For big corpuses, you can parallelize this process using `-p`. Example:
+
+```
+KAFL_CONFIG_FILE=kafl_config.yaml kafl_cov.py \
+	-w /dev/shm/kafl --input /dev/shm/kafl \
+	--kernel source/arch/x86/boot/bzImage \
+	-ip0 ffffffff81000000-ffffffff83603000 \
+	-ip1 ffffffff855ed000-ffffffff856e4000 \
+	--resume -m 512 -t 2 -p 4
+```
 
 ## 5) Known Issues
 
