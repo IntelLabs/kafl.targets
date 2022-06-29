@@ -133,10 +133,10 @@ static void hprintf(const char * format, ...){
 #define NYX_HOST_MAGIC  0x4878794e
 #define NYX_AGENT_MAGIC 0x4178794e
 
-#define NYX_HOST_VERSION 1
+#define NYX_HOST_VERSION 2
 #define NYX_AGENT_VERSION 1
 
-typedef struct host_config_s {
+typedef struct {
 	uint32_t host_magic;
 	uint32_t host_version;
 	uint32_t bitmap_size;
@@ -146,7 +146,7 @@ typedef struct host_config_s {
 	/* more to come */
 } __attribute__((packed)) host_config_t;
 
-typedef struct agent_config_s {
+typedef struct {
 	uint32_t agent_magic;
 	uint32_t agent_version;
 	uint8_t agent_timeout_detection;
@@ -161,14 +161,14 @@ typedef struct agent_config_s {
 	/* more to come */
 } __attribute__((packed)) agent_config_t;
 
-typedef struct kafl_dump_file_s {
+typedef struct {
 	uint64_t file_name_str_ptr;
 	uint64_t data_ptr;
 	uint64_t bytes;
 	uint8_t append;
 } __attribute__((packed)) kafl_dump_file_t;
 
-typedef struct req_data_bulk_s {
+typedef struct {
 	char file_name[256];
 	uint64_t num_addresses;
 	uint64_t addresses[479];
