@@ -19,6 +19,7 @@ ZEPHYR_VERSION="v2.3.0"
 SDK_URL="https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.11.3/zephyr-sdk-0.11.3-setup.run"
 export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
 export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk/
+export ZEPHYR_ROOT=$WORKSPACE/zephyrproject
 
 function fail {
 	echo
@@ -27,15 +28,13 @@ function fail {
 	exit 1
 }
 
-get_env() {
-	# may fail on missing / disabled zephyr install
-	ZEPHYR_BASE=$(west list -f {abspath} zephyr 2>/dev/null) || true
-}
-
 function fetch_zephyr() {
-	get_env
-	test -d "$ZEPHYR_BASE" && (echo "ZEPHYR_BASE is already set. Skipping install."; return)
-	echo -e "\nAttempting to fetch Zephyr and dependencies using sudo apt, west update, and pip3.\n\n\tHit Enter to continue or ctrl-c to abort."
+	if test -d "$ZEPHYR_BASE"; then
+	   echo "ZEPHYR_BASE is already set. Skipping install."
+	   return
+	fi
+
+	echo -e "\nAttempting to fetch Zephyr and dependencies using sudo apt, west and pip3.\n\n\tHit Enter to continue or ctrl-c to abort."
 	read
 	echo "[*] Fetching dependencies.. (sudo apt)"
 	# https://docs.zephyrproject.org/latest/getting_started/installation_linux.html
@@ -49,25 +48,25 @@ function fetch_zephyr() {
 	# missing deps on Ubuntu?
 	sudo apt-get install python3-pyelftools
 
-	echo "[*] Fetching Zephyr repos.. (west update -k)"
-	# Zephyr also uses West. Need to add it as an `import` :-/
-	ln -sf $SCRIPT_ROOT/zephyr.yml $WORKSPACE/manifest/imports/zephyr.yml
-
-	# fetch Zephyr project using west and add any python dependencies
-	west update -k
-	get_env
-	test -d "$ZEPHYR_BASE" || fail "Failed to add Zephyr to west workspace. Exit."
-
-	echo "[*] Fetching Zephyr python deps.. (pip3 install)"
-	pip3 install -r $ZEPHYR_BASE/scripts/requirements.txt
+	echo "[-] Fetching Zephyr components to $ZEPHYR_ROOT"
+	pip3 install west
+	which west || fail "Error: ~/.local/bin not in \$PATH?"
+	pushd $(dirname $ZEPHYR_ROOT)
+	west init --mr $ZEPHYR_VERSION $(basename $ZEPHYR_ROOT)
+	cd zephyrproject
+	west update
+	pip3 install -r zephyr/scripts/requirements.txt
+	popd
 }
 
 function fetch_sdk() {
-	test -d "$ZEPHYR_SDK_INSTALL_DIR" && (echo "ZEPHYR_SDK_INSTALL_DIR is already set. Skipping install."; return)
+	if test -d "$ZEPHYR_SDK_INSTALL_DIR"; then
+		echo "ZEPHYR_SDK_INSTALL_DIR is already set. Skipping install."
+		return
+	fi
 
 	# Download Zephyr SDK. Not pretty.
-	get_env
-	INSTALLER=$ZEPHYR_BASE/$(basename $SDK_URL)
+	INSTALLER=$ZEPHYR_ROOT/$(basename $SDK_URL)
 
 	echo -e "\nAttempting to fetch and execute Zephyr SDK installer from\n$SDK_URL\n\n\tHit Enter to continue or ctrl-c to abort."
 	read
@@ -75,10 +74,9 @@ function fetch_sdk() {
 	bash $INSTALLER
 }
 
-function fetch_deps() {
-	# fetch Zephyr and SDK if not available
-	test -d "$ZEPHYR_BASE" || (echo "Could not find Zephyr in current west workspace."; fetch_zephyr)
-	test -d "$ZEPHYR_SDK_INSTALL_DIR" || (echo "Could not find Zephyr SDK."; fetch_sdk)
+function source_env() {
+	# source if available, complain only if needed
+	test -f "$ZEPHYR_ROOT/zephyr/zephyr-env.sh" && source $ZEPHYR_ROOT/zephyr/zephyr-env.sh
 }
 
 function check_deps() {
@@ -113,8 +111,6 @@ function build_app() {
 }
 
 function fuzz() {
-	pushd $KAFL_ROOT
-
 	BIN=${SCRIPT_ROOT}/build/zephyr/zephyr.elf
 	MAP=${SCRIPT_ROOT}/build/zephyr/zephyr.map
 	test -f $BIN -a -f $MAP || fail "Could not find Zephyr target .elf and .map files. Need to build first?"
@@ -125,7 +121,7 @@ function fuzz() {
 
 	echo "IP filter range: $ip_start-0x$ip_end"
 
-	python3 kafl_fuzz.py \
+	kafl_fuzz.py \
 		-ip0 ${ip_start}-0x${ip_end} \
 		--kernel ${BIN} \
 		--memory 32 \
@@ -136,7 +132,6 @@ function fuzz() {
 
 function cov()
 {
-	pushd $KAFL_ROOT
 	TEMPDIR=$(mktemp -d -p /dev/shm)
 	WORKDIR=$1; shift
 
@@ -156,18 +151,16 @@ function cov()
 
 
 	# Note: -ip0 and other VM settings should match those used during fuzzing
-	python3 kafl_cov.py \
+	kafl_cov.py \
 		-v -ip0 ${ip_start}-0x${ip_end} \
 		--kernel ${BIN} \
 		--memory 32 \
 		--work-dir $TEMPDIR \
 		--input $WORKDIR $*
-	popd
 }
 
 function gdb()
 {
-	pushd $KAFL_ROOT
 	TEMPDIR=$(mktemp -d -p /dev/shm)
 	PAYLOAD=$1; shift
 
@@ -186,12 +179,10 @@ function gdb()
 		--memory 32 \
 		--work-dir $TEMPDIR \
 		--input $PAYLOAD $*
-	popd
 }
 
 function noise()
 {
-	pushd $KAFL_ROOT
 	TEMPDIR=$(mktemp -d -p /dev/shm)
 	PAYLOAD=$1; shift
 
@@ -218,7 +209,6 @@ function noise()
 		-n 0 \
 		--work-dir $TEMPDIR \
 		--input $PAYLOAD $*
-	popd
 }
 
 function usage() {
@@ -241,14 +231,12 @@ function usage() {
 
 CMD=$1; shift || usage
 
-get_env
+source_env
 
 case $CMD in
 	"zephyr")
 		fetch_zephyr
 		fetch_sdk
-		# re-scan + report
-		get_env
 		check_deps
 		;;
 	"fuzz")
