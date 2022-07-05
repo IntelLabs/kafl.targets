@@ -28,9 +28,9 @@ git clone -b kafl/fuzz-5.15-4 https://github.com/IntelLabs/kafl.linux.git linux-
 
 ## 2) Configure and build target kernel
 
-Install build dependencies:
+Install build dependencies (depends on kernel .config):
 ```
-sudo apt install bison flex libssl-dev libelf-dev lz4
+sudo apt install gawk bison flex openssl libssl-dev dkms libelf-dev lz4 dwarves
 ```
 
 Use the provided example config to build a guest kernel with PCI/VIRTIO fuzzing
