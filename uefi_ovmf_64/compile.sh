@@ -17,7 +17,7 @@ TARGET_ROOT="$(dirname ${PWD}/${0})"
 [ -n "$KAFL_ROOT" ] || KAFL_ROOT=${PWD}
 [ -n "$EDK2_ROOT" ] || EDK2_ROOT=$KAFL_ROOT/edk2.git
 
-[ -d $KAFL_ROOT/kAFL-Fuzzer ] || ( echo "Please set correct KAFL_ROOT" ; false )
+[ -d $KAFL_ROOT/fuzzer ] || ( echo "Please set correct KAFL_ROOT" ; false )
 
 #BUILD=RELEASE
 BUILD=DEBUG
