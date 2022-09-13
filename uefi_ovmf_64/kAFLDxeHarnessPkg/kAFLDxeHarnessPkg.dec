@@ -1,0 +1,19 @@
+## @file  kAFLDxeHarnessPkg.dec
+# This package provides the modules that defines DXE fuzzing harnesses
+# It also provides the definitions (including PROTOCOLs/GUIDs),
+# which are used for those modules.
+#
+##
+
+[Defines]
+  DEC_SPECIFICATION              = 0x00010005
+  PACKAGE_NAME                   = kAFLDxeHarnessPkg
+  PACKAGE_GUID                   = 2BC91BA8-ABDB-4B4B-8FEE-5AFB86506BDC
+  PACKAGE_VERSION                = 0.01
+
+[Includes]
+  Include
+
+[Protocols]
+  ## Include/Protocol/kAFLDxe.h
+  gEfikAFLDxeProtocolGuid        = { 0xc2520636, 0x8d4b, 0x456f, { 0xbe, 0x46, 0x93, 0x5e, 0xf0, 0x6f, 0x8a, 0xd3 }}

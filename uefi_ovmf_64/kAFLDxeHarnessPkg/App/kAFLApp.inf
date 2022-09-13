@@ -1,0 +1,33 @@
+## @file
+#  kAFL Harness Application
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = kAFLApp
+  FILE_GUID                      = FB95D53E-2222-478C-8C4D-7B0298C134B0
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = UefiMain
+
+#
+# The following information is for reference only and not required by the build
+# tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 EBC
+#
+
+[Sources]
+  kAFLApp.c
+
+[Protocols]
+  gEfikAFLDxeProtocolGuid                       ## CONSUMES
+
+[Packages]
+  MdePkg/MdePkg.dec
+  kAFLDxeHarnessPkg/kAFLDxeHarnessPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
