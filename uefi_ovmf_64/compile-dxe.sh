@@ -102,7 +102,7 @@ function build_platform()
 
   # Already built with my OVMF platform
   # @see in kAFLDxeHarnessPkg/App/kAFLApp.inf
-  build $BUILD_OPTS $3 -p "$1/kAFLDxePlatform.dsc"
+  build $BUILD_OPTS $3 -p "$1/kAFLDxePlatform${OVMF_DSC_ARCH}.dsc"
 
   echo "Build done, copy target files.."
   # Copy new platform

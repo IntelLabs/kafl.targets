@@ -60,6 +60,7 @@ RunTestHarness (
 #ifndef uint_ptr
 #if defined(__i386__)
 #define uint_ptr uint32_t
+typedef uint32_t uintptr_t;
 #elif defined(__x86_64__)
 #define uint_ptr uint64_t
 typedef uint64_t uintptr_t;

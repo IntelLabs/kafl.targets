@@ -10,7 +10,7 @@
   SUPPORTED_ARCHITECTURES        = IA32|X64
   BUILD_TARGETS                  = NOOPT|DEBUG|RELEASE
   SKUID_IDENTIFIER               = DEFAULT
-  FLASH_DEFINITION               = kAFLDxePlatformNullPkg/kAFLDxePlatform.fdf
+  FLASH_DEFINITION               = kAFLDxePlatformNullPkg/kAFLDxePlatformIa32X64.fdf
 
   # Declared here but defined using build -D OPTION !
   DEFINE SMM_REQUIRE = FALSE
