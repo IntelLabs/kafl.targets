@@ -139,7 +139,7 @@ function run()
 
 function noise()
 {
-  pushd $KAFL_ROOT
+  pushd $KAFL_ROOT/fuzzer
   TEMPDIR=$(mktemp -d -p /dev/shm)
   WORKDIR=$1; shift
   echo
@@ -148,10 +148,10 @@ function noise()
   sleep 1
 
   # Note: -ip0 and other VM settings should match those used during fuzzing
-  python3 kafl_debug.py -action noise -ip0 0x2000000-0x2F00000 --purge \
+  ./kafl_debug.py --action noise -ip0 0x2000000-0x2F00000 -ip1 0xF000000-0xFF00000 --purge \
     --bios $TARGET_ROOT/bios.bin \
-    --qemu-extra " -hda fat:rw:$TARGET_ROOT/fake_hda -net none -no-reboot" \
-    --memory 64 \
+    --qemu-extra="-hda fat:rw:$TARGET_ROOT/fake_hda" \
+    --memory 256 \
     --work-dir $TEMPDIR \
     --input $WORKDIR $*
   popd
@@ -159,7 +159,7 @@ function noise()
 
 function cov()
 {
-  pushd $KAFL_ROOT
+  pushd $KAFL_ROOT/fuzzer
   TEMPDIR=$(mktemp -d -p /dev/shm)
   WORKDIR=$1
   echo
@@ -168,10 +168,16 @@ function cov()
   sleep 1
 
   # Note: -ip0 and other VM settings should match those used during fuzzing
-  python3 kafl_cov.py -v -ip0 0x2000000-0x2F00000 --purge \
+  echo ./kafl_cov.py -v -ip0 0xE000000-0xEF00000 -ip1 0xF000000-0xFF00000 --purge \
     --bios $TARGET_ROOT/bios.bin \
-    --qemu-extra " -hda fat:rw:$TARGET_ROOT/fake_hda -net none -no-reboot" \
-    --memory 64 \
+    --qemu-extra "-hda fat:rw:$TARGET_ROOT/fake_hda" \
+    --memory 256 \
+    --work-dir $TEMPDIR \
+    --input $WORKDIR
+  ./kafl_cov.py -v -ip0 0xE000000-0xEF00000 -ip1 0xF000000-0xFF00000 --purge \
+    --bios $TARGET_ROOT/bios.bin \
+    --qemu-extra="-hda fat:rw:$TARGET_ROOT/fake_hda" \
+    --memory 256 \
     --work-dir $TEMPDIR \
     --input $WORKDIR
   popd
