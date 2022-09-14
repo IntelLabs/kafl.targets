@@ -1,0 +1,120 @@
+diff --git a/OvmfPkg/OvmfPkgIa32.fdf b/OvmfPkg/OvmfPkgIa32.fdf
+index 7023ade8ce..54ba115345 100644
+--- a/OvmfPkg/OvmfPkgIa32.fdf
++++ b/OvmfPkg/OvmfPkgIa32.fdf
+@@ -11,7 +11,7 @@
+ ################################################################################
+ 
+ [Defines]
+-!include OvmfPkgDefines.fdf.inc
++!include OvmfPkg/OvmfPkgDefines.fdf.inc
+ 
+ #
+ # Build the variable store and the firmware code as one unified flash device
+@@ -24,7 +24,7 @@ ErasePolarity = 1
+ BlockSize     = $(BLOCK_SIZE)
+ NumBlocks     = $(FW_BLOCKS)
+ 
+-!include VarStore.fdf.inc
++!include OvmfPkg/VarStore.fdf.inc
+ 
+ $(VARS_SIZE)|$(FVMAIN_SIZE)
+ FV = FVMAIN_COMPACT
+@@ -43,7 +43,7 @@ ErasePolarity = 1
+ BlockSize     = $(BLOCK_SIZE)
+ NumBlocks     = $(VARS_BLOCKS)
+ 
+-!include VarStore.fdf.inc
++!include OvmfPkg/VarStore.fdf.inc
+ 
+ [FD.OVMF_CODE]
+ BaseAddress   = $(CODE_BASE_ADDRESS)
+@@ -410,7 +410,7 @@ FILE FV_IMAGE = 9E21FD93-9C72-4c15-8C4B-E77F1DB2D792 {
+    }
+  }
+ 
+-!include FvmainCompactScratchEnd.fdf.inc
++!include OvmfPkg/FvmainCompactScratchEnd.fdf.inc
+ 
+ ################################################################################
+ 
+diff --git a/OvmfPkg/OvmfPkgIa32X64.fdf b/OvmfPkg/OvmfPkgIa32X64.fdf
+index 80de4fa2c0..43edcc3ceb 100644
+--- a/OvmfPkg/OvmfPkgIa32X64.fdf
++++ b/OvmfPkg/OvmfPkgIa32X64.fdf
+@@ -11,7 +11,7 @@
+ ################################################################################
+ 
+ [Defines]
+-!include OvmfPkgDefines.fdf.inc
++!include OvmfPkg/OvmfPkgDefines.fdf.inc
+ 
+ #
+ # Build the variable store and the firmware code as one unified flash device
+@@ -24,7 +24,7 @@ ErasePolarity = 1
+ BlockSize     = $(BLOCK_SIZE)
+ NumBlocks     = $(FW_BLOCKS)
+ 
+-!include VarStore.fdf.inc
++!include OvmfPkg/VarStore.fdf.inc
+ 
+ $(VARS_SIZE)|$(FVMAIN_SIZE)
+ FV = FVMAIN_COMPACT
+@@ -43,7 +43,7 @@ ErasePolarity = 1
+ BlockSize     = $(BLOCK_SIZE)
+ NumBlocks     = $(VARS_BLOCKS)
+ 
+-!include VarStore.fdf.inc
++!include OvmfPkg/VarStore.fdf.inc
+ 
+ [FD.OVMF_CODE]
+ BaseAddress   = $(CODE_BASE_ADDRESS)
+@@ -413,7 +413,7 @@ FILE FV_IMAGE = 9E21FD93-9C72-4c15-8C4B-E77F1DB2D792 {
+    }
+  }
+ 
+-!include FvmainCompactScratchEnd.fdf.inc
++!include OvmfPkg/FvmainCompactScratchEnd.fdf.inc
+ 
+ ################################################################################
+ 
+diff --git a/OvmfPkg/OvmfPkgX64.fdf b/OvmfPkg/OvmfPkgX64.fdf
+index c0f5a1ef3c..5c18a53da7 100644
+--- a/OvmfPkg/OvmfPkgX64.fdf
++++ b/OvmfPkg/OvmfPkgX64.fdf
+@@ -11,7 +11,7 @@
+ ################################################################################
+ 
+ [Defines]
+-!include OvmfPkgDefines.fdf.inc
++!include OvmfPkg/OvmfPkgDefines.fdf.inc
+ 
+ #
+ # Build the variable store and the firmware code as one unified flash device
+@@ -24,7 +24,7 @@ ErasePolarity = 1
+ BlockSize     = $(BLOCK_SIZE)
+ NumBlocks     = $(FW_BLOCKS)
+ 
+-!include VarStore.fdf.inc
++!include OvmfPkg/VarStore.fdf.inc
+ 
+ $(VARS_SIZE)|$(FVMAIN_SIZE)
+ FV = FVMAIN_COMPACT
+@@ -43,7 +43,7 @@ ErasePolarity = 1
+ BlockSize     = $(BLOCK_SIZE)
+ NumBlocks     = $(VARS_BLOCKS)
+ 
+-!include VarStore.fdf.inc
++!include OvmfPkg/VarStore.fdf.inc
+ 
+ [FD.OVMF_CODE]
+ BaseAddress   = $(CODE_BASE_ADDRESS)
+@@ -440,7 +440,7 @@ FILE FV_IMAGE = 9E21FD93-9C72-4c15-8C4B-E77F1DB2D792 {
+    }
+  }
+ 
+-!include FvmainCompactScratchEnd.fdf.inc
++!include OvmfPkg/FvmainCompactScratchEnd.fdf.inc
+ 
+ ################################################################################
+ 
