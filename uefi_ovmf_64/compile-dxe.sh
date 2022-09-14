@@ -19,20 +19,23 @@ TARGET_ROOT="$(dirname ${PWD}/${0})"
 
 [ -d $KAFL_ROOT/fuzzer ] || ( echo "Please set correct KAFL_ROOT" ; false )
 
+# Release selection
+
 #BUILD=RELEASE
-# BUILD=DEBUG
+#BUILD=DEBUG
 BUILD=NOOPT
+
+# Architecture selection
+
 #ARCH=IA32
-#ARCH=X64
-ARCH=3264
+ARCH=X64
+#ARCH=3264
 TOOL=GCC5
 
 #APP=TestDecompress
 #APP=TestBMP
 APP=TestToy
 
-#BUILD_OPTS="-a IA32 -a X64 -b NOOPT -t CLANGSAN40 -n 8 -DDEBUG_ON_SERIAL_PORT"
-#BUILD_OPTS="-a $ARCH -b $BUILD -t $TOOL -n $(nproc)"
 BUILD_OPTS=""
 OVMF_DSC_ARCH=""
 
@@ -58,8 +61,6 @@ BUILD_OPTS="${BUILD_OPTS} \
   -b ${BUILD} \
   -n $(nproc)"
 
-# KAFL_OPTS="--redqueen --grimoire -v --log --debug --trace --log-hprintf"
-# Use 
 KAFL_OPTS="--redqueen --grimoire -v --debug -p 8"
 
 function install_edk2()
