@@ -47,7 +47,6 @@ void HarnessInit(void *panic_handler, void *kasan_handler)
     kAFL_hypercall(HYPERCALL_KAFL_SUBMIT_KASAN, (uint_ptr)kasan_handler);
   }
 
-  DebugPrint (DEBUG_INFO, "IEZJIOZEFJ HYPERCALL_KAFL_RELEASE\n");
   hprintf("Fuzzer handshake done\n");
 
   kAFL_hypercall(HYPERCALL_KAFL_GET_HOST_CONFIG, (uintptr_t)&host_config);
