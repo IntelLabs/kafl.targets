@@ -10,7 +10,7 @@ set -e
 
 function usage() {
   echo
-  echo "Build and run the UEFI OVMF sample."
+  echo "Build and fuzz the UEFI OVMF sample."
   echo
   echo "This script assumes KAFL at $KAFL_ROOT and EDK2 cloned to $EDK2_ROOT."
   echo "Build settings in Conf/target.txt will be overridden with '$BUILD_OPTS'."
@@ -18,7 +18,7 @@ function usage() {
   echo "Usage: $0 <target>"
   echo
   echo Targets:
-  echo "  run                          - run sample agent in kAFL"
+  echo "  fuzz                         - fuzz sample agent in kAFL"
   echo "  noise <file>                 - process <file> in trace mode to collect coverage info"
   echo "  cov <dir>                    - process <dir> in trace mode to collect coverage info"
   echo "  edk2                         - download edk2 branch + build deps"
@@ -132,7 +132,7 @@ function build_app()
   popd
 }
 
-function run()
+function fuzz()
 {
   # Note: -ip0 depends on your UEFI build and provided machine memory!
   # To debug qemu, append -D -d to qemu extra and you'll have qemu logs
@@ -221,6 +221,7 @@ ARCH=X64
 TOOL=GCC5
 
 APP=TestBMP
+APP=TestDecompress
 
 BUILD_OPTS=""
 OVMF_DSC_ARCH=""
@@ -250,8 +251,8 @@ BUILD_OPTS="${BUILD_OPTS} \
 CMD=$1; shift || usage
 
 case $CMD in
-  "run")
-    run $*
+  "fuzz")
+    fuzz $*
     ;;
   "noise")
     test -f "$1" || usage
