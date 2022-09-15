@@ -1,8 +1,8 @@
 /*
- * Copyright 2019 Sergej Schumilo, Cornelius Aschermann
- * Copyright 2020 Intel Corporation
+ * Copyright 2022 Sergej Schumilo, Cornelius Aschermann
+ * Copyright 2022 Intel Corporation
  * 
- * SPDX-License-Identifier: BSD-2-Clause
+ * SPDX-License-Identifier: MIT
  */ 
 
 #ifndef _KAFL_AGENT_LIB_H_
@@ -67,34 +67,23 @@ typedef uint64_t uintptr_t;
 #endif
 #endif
 
-/* Kernel Printf Debugger */
-#define KVM_EXIT_KAFL_PRINTK_ADDR		114
-#define KVM_EXIT_KAFL_PRINTK			115
-
-/* user space only exit reasons */
-#define KVM_EXIT_KAFL_USER_RANGE_ADVISE	116
-#define KVM_EXIT_KAFL_USER_SUBMIT_MODE	117
-#define KVM_EXIT_KAFL_USER_FAST_ACQUIRE	118
-#define KVM_EXIT_KAFL_TOPA_MAIN_FULL	119
-#define KVM_EXIT_KAFL_USER_ABORT		120
-
 #define HYPERCALL_KAFL_RAX_ID				0x01f
 #define HYPERCALL_KAFL_ACQUIRE				0
 #define HYPERCALL_KAFL_GET_PAYLOAD			1
-#define HYPERCALL_KAFL_GET_PROGRAM			2
-#define HYPERCALL_KAFL_GET_ARGV				3
+#define HYPERCALL_KAFL_GET_PROGRAM			2  /* deprecated */
+#define HYPERCALL_KAFL_GET_ARGV				3  /* deprecated */
 #define HYPERCALL_KAFL_RELEASE				4
 #define HYPERCALL_KAFL_SUBMIT_CR3			5
 #define HYPERCALL_KAFL_SUBMIT_PANIC			6
 #define HYPERCALL_KAFL_SUBMIT_KASAN			7
 #define HYPERCALL_KAFL_PANIC				8
 #define HYPERCALL_KAFL_KASAN				9
-#define HYPERCALL_KAFL_LOCK					10
-#define HYPERCALL_KAFL_INFO					11
+#define HYPERCALL_KAFL_LOCK					10 /* deprecated */
+#define HYPERCALL_KAFL_INFO					11 /* deprecated */
 #define HYPERCALL_KAFL_NEXT_PAYLOAD			12
 #define HYPERCALL_KAFL_PRINTF				13
-#define HYPERCALL_KAFL_PRINTK_ADDR			14
-#define HYPERCALL_KAFL_PRINTK				15
+#define HYPERCALL_KAFL_PRINTK_ADDR			14 /* deprecated */
+#define HYPERCALL_KAFL_PRINTK				15 /* deprecated */
 
 /* user space only hypercalls */
 #define HYPERCALL_KAFL_USER_RANGE_ADVISE	16
@@ -125,7 +114,7 @@ typedef uint64_t uintptr_t;
 #define HYPERCALL_KAFL_NESTED_CONFIG		(1 | HYPERTRASH_HYPERCALL_MASK)
 #define HYPERCALL_KAFL_NESTED_ACQUIRE		(2 | HYPERTRASH_HYPERCALL_MASK)
 #define HYPERCALL_KAFL_NESTED_RELEASE		(3 | HYPERTRASH_HYPERCALL_MASK)
-#define HYPERCALL_KAFL_NESTED_HPRINTF		(4 | HYPERTRASH_HYPERCALL_MASK)gre
+#define HYPERCALL_KAFL_NESTED_HPRINTF		(4 | HYPERTRASH_HYPERCALL_MASK)
 
 #define HPRINTF_MAX_SIZE					0x1000					/* up to 4KB hprintf strings */
 
@@ -138,7 +127,7 @@ typedef struct {
 	uint8_t data[];
 } kAFL_payload;
 
-typedef struct{
+typedef struct {
 	uint64_t ip[4];
 	uint64_t size[4];
 	uint8_t enabled[4];
@@ -176,9 +165,7 @@ static void hprintf(const char * format, ...){
 	va_list args;
 	va_start(args, format);
 	// vsnprintf((char*)hprintf_buffer, HPRINTF_MAX_SIZE, format, args);
-  AsciiVSPrint((char*)hprintf_buffer, HPRINTF_MAX_SIZE, format,
-      /* XXX */ (VA_LIST)args);
-	//printf("%s", hprintf_buffer);
+	AsciiVSPrint((char*)hprintf_buffer, HPRINTF_MAX_SIZE, format, (VA_LIST)args);
 	kAFL_hypercall(HYPERCALL_KAFL_PRINTF, (uintptr_t)hprintf_buffer);
 	va_end(args);
 }
@@ -189,7 +176,7 @@ static void hprintf(const char * format, ...){
 #define NYX_HOST_VERSION 2
 #define NYX_AGENT_VERSION 1
 
-typedef struct host_config_s {
+typedef struct {
 	uint32_t host_magic;
 	uint32_t host_version;
 	uint32_t bitmap_size;
@@ -199,7 +186,7 @@ typedef struct host_config_s {
 	/* more to come */
 } __attribute__((packed)) host_config_t;
 
-typedef struct agent_config_s {
+typedef struct {
 	uint32_t agent_magic;
 	uint32_t agent_version;
 	uint8_t agent_timeout_detection;
@@ -214,20 +201,17 @@ typedef struct agent_config_s {
 	/* more to come */
 } __attribute__((packed)) agent_config_t;
 
-typedef struct kafl_dump_file_s {
+typedef struct {
 	uint64_t file_name_str_ptr;
 	uint64_t data_ptr;
 	uint64_t bytes;
 	uint8_t append;
 } __attribute__((packed)) kafl_dump_file_t;
 
-typedef struct req_data_bulk_s {
+typedef struct {
 	char file_name[256];
 	uint64_t num_addresses;
 	uint64_t addresses[479];
 } req_data_bulk_t;
-
-void agent_run(void);
-void agent_init(void *panic_handler, void *kasan_handler);
 
 #endif /* _KAFL_AGENT_LIB_H_ */
