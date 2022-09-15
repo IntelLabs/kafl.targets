@@ -1,0 +1,11 @@
+# kAFL configuration for UEFI BIOS fuzzing
+#
+# Use this for global/baseline config and customize via cmdline.
+#
+qemu_path: $QEMU_ROOT/x86_64-softmmu/qemu-system-x86_64
+ptdump_path: $LIBXDC_ROOT/build/ptdump_static
+radamsa_path: $RADAMSA_ROOT/bin/radamsa
+qemu_base: -enable-kvm -machine kAFL64-v1 -cpu kAFL64-Hypervisor-v1,+vmx -no-reboot -net none -display none
+qemu_serial: -device isa-serial,chardev=kafl_serial
+qemu_memory: 256
+qemu_extra:
