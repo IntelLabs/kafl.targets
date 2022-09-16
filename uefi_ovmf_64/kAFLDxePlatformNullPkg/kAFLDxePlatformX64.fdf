@@ -1,0 +1,235 @@
+## @file
+#  Open Virtual Machine Firmware: FDF
+#
+#  Copyright (c) 2021 - 2019, Intel Corporation. All rights reserved.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+################################################################################
+
+# Use OvmfPkg fdf as is as much a possible
+!include OvmfPkg/OvmfPkgX64.fdf
+
+################################################################################
+
+[FV.DXEFV]
+FvForceRebase      = FALSE
+FvNameGuid         = 7CB8BDC9-F8EB-4F34-AAEA-3EE4AF6516A1
+BlockSize          = 0x10000
+FvAlignment        = 16
+ERASE_POLARITY     = 1
+MEMORY_MAPPED      = TRUE
+STICKY_WRITE       = TRUE
+LOCK_CAP           = TRUE
+LOCK_STATUS        = TRUE
+WRITE_DISABLED_CAP = TRUE
+WRITE_ENABLED_CAP  = TRUE
+WRITE_STATUS       = TRUE
+WRITE_LOCK_CAP     = TRUE
+WRITE_LOCK_STATUS  = TRUE
+READ_DISABLED_CAP  = TRUE
+READ_ENABLED_CAP   = TRUE
+READ_STATUS        = TRUE
+READ_LOCK_CAP      = TRUE
+READ_LOCK_STATUS   = TRUE
+
+APRIORI DXE {
+  INF  MdeModulePkg/Universal/DevicePathDxe/DevicePathDxe.inf
+  INF  MdeModulePkg/Universal/PCD/Dxe/Pcd.inf
+  # AmdSevDxe must be loaded before TdxDxe. Because in SEV guest AmdSevDxe
+  # driver performs a MemEncryptSevClearMmioPageEncMask() call against the
+  # PcdPciExpressBaseAddress range to mark it shared/unencrypted.
+  # Otherwise #VC handler terminates the guest for trying to do MMIO to an
+  # encrypted region (Since the range has not been marked shared/unencrypted).
+  INF  OvmfPkg/AmdSevDxe/AmdSevDxe.inf
+  INF  OvmfPkg/TdxDxe/TdxDxe.inf
+!if $(SMM_REQUIRE) == FALSE
+  INF  OvmfPkg/QemuFlashFvbServicesRuntimeDxe/FvbServicesRuntimeDxe.inf
+!endif
+}
+
+#
+# DXE Phase modules
+#
+INF  MdeModulePkg/Core/Dxe/DxeMain.inf
+
+INF  MdeModulePkg/Universal/ReportStatusCodeRouter/RuntimeDxe/ReportStatusCodeRouterRuntimeDxe.inf
+INF  MdeModulePkg/Universal/StatusCodeHandler/RuntimeDxe/StatusCodeHandlerRuntimeDxe.inf
+INF  MdeModulePkg/Universal/PCD/Dxe/Pcd.inf
+
+INF  MdeModulePkg/Core/RuntimeDxe/RuntimeDxe.inf
+INF  MdeModulePkg/Universal/SecurityStubDxe/SecurityStubDxe.inf
+INF  MdeModulePkg/Universal/EbcDxe/EbcDxe.inf
+INF  UefiCpuPkg/CpuIo2Dxe/CpuIo2Dxe.inf
+
+INF  UefiCpuPkg/CpuDxe/CpuDxe.inf
+INF  FILE_GUID = $(UP_CPU_DXE_GUID) UefiCpuPkg/CpuDxe/CpuDxe.inf
+
+!ifdef $(CSM_ENABLE)
+  INF  OvmfPkg/8259InterruptControllerDxe/8259.inf
+  INF  OvmfPkg/8254TimerDxe/8254Timer.inf
+!else
+  INF  OvmfPkg/LocalApicTimerDxe/LocalApicTimerDxe.inf
+!endif
+INF  OvmfPkg/IncompatiblePciDeviceSupportDxe/IncompatiblePciDeviceSupport.inf
+INF  OvmfPkg/PciHotPlugInitDxe/PciHotPlugInit.inf
+INF  MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridgeDxe.inf
+INF  MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe.inf
+INF  MdeModulePkg/Universal/ResetSystemRuntimeDxe/ResetSystemRuntimeDxe.inf
+INF  MdeModulePkg/Universal/Metronome/Metronome.inf
+INF  PcAtChipsetPkg/PcatRealTimeClockRuntimeDxe/PcatRealTimeClockRuntimeDxe.inf
+
+INF  OvmfPkg/VirtioPciDeviceDxe/VirtioPciDeviceDxe.inf
+INF  OvmfPkg/Virtio10Dxe/Virtio10.inf
+INF  OvmfPkg/VirtioBlkDxe/VirtioBlk.inf
+INF  OvmfPkg/VirtioScsiDxe/VirtioScsi.inf
+INF  OvmfPkg/VirtioRngDxe/VirtioRng.inf
+!if $(PVSCSI_ENABLE) == TRUE
+INF  OvmfPkg/PvScsiDxe/PvScsiDxe.inf
+!endif
+!if $(MPT_SCSI_ENABLE) == TRUE
+INF  OvmfPkg/MptScsiDxe/MptScsiDxe.inf
+!endif
+!if $(LSI_SCSI_ENABLE) == TRUE
+INF  OvmfPkg/LsiScsiDxe/LsiScsiDxe.inf
+!endif
+
+!if $(SECURE_BOOT_ENABLE) == TRUE
+  INF  SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigDxe.inf
+!endif
+
+INF  MdeModulePkg/Universal/WatchdogTimerDxe/WatchdogTimer.inf
+INF  MdeModulePkg/Universal/MonotonicCounterRuntimeDxe/MonotonicCounterRuntimeDxe.inf
+INF  MdeModulePkg/Universal/CapsuleRuntimeDxe/CapsuleRuntimeDxe.inf
+INF  MdeModulePkg/Universal/Console/ConPlatformDxe/ConPlatformDxe.inf
+INF  MdeModulePkg/Universal/Console/ConSplitterDxe/ConSplitterDxe.inf
+INF  MdeModulePkg/Universal/Console/GraphicsConsoleDxe/GraphicsConsoleDxe.inf
+INF  MdeModulePkg/Universal/Console/TerminalDxe/TerminalDxe.inf
+INF  MdeModulePkg/Universal/DriverHealthManagerDxe/DriverHealthManagerDxe.inf
+INF  MdeModulePkg/Universal/BdsDxe/BdsDxe.inf
+INF  MdeModulePkg/Application/UiApp/UiApp.inf
+INF  OvmfPkg/QemuKernelLoaderFsDxe/QemuKernelLoaderFsDxe.inf
+INF  MdeModulePkg/Universal/DevicePathDxe/DevicePathDxe.inf
+INF  MdeModulePkg/Universal/Disk/DiskIoDxe/DiskIoDxe.inf
+INF  MdeModulePkg/Universal/Disk/PartitionDxe/PartitionDxe.inf
+INF  MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
+INF  MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
+INF  MdeModulePkg/Bus/Scsi/ScsiBusDxe/ScsiBusDxe.inf
+INF  MdeModulePkg/Bus/Scsi/ScsiDiskDxe/ScsiDiskDxe.inf
+INF  OvmfPkg/SataControllerDxe/SataControllerDxe.inf
+INF  MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
+INF  MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
+INF  MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
+INF  MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf
+INF  MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe.inf
+INF  MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
+INF  MdeModulePkg/Universal/MemoryTest/NullMemoryTestDxe/NullMemoryTestDxe.inf
+
+INF  OvmfPkg/SioBusDxe/SioBusDxe.inf
+!if $(SOURCE_DEBUG_ENABLE) == FALSE
+INF  MdeModulePkg/Bus/Pci/PciSioSerialDxe/PciSioSerialDxe.inf
+!endif
+INF  MdeModulePkg/Bus/Isa/Ps2KeyboardDxe/Ps2KeyboardDxe.inf
+
+INF  MdeModulePkg/Universal/SmbiosDxe/SmbiosDxe.inf
+INF  OvmfPkg/SmbiosPlatformDxe/SmbiosPlatformDxe.inf
+
+INF  MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
+INF  OvmfPkg/AcpiPlatformDxe/AcpiPlatformDxe.inf
+INF  MdeModulePkg/Universal/Acpi/S3SaveStateDxe/S3SaveStateDxe.inf
+INF  MdeModulePkg/Universal/Acpi/BootScriptExecutorDxe/BootScriptExecutorDxe.inf
+INF  MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
+
+INF  FatPkg/EnhancedFatDxe/Fat.inf
+INF  MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+INF  OvmfPkg/VirtioFsDxe/VirtioFsDxe.inf
+
+!if $(BUILD_SHELL) == TRUE && $(TOOL_CHAIN_TAG) != "XCODE5"
+INF  ShellPkg/DynamicCommand/TftpDynamicCommand/TftpDynamicCommand.inf
+INF  ShellPkg/DynamicCommand/HttpDynamicCommand/HttpDynamicCommand.inf
+INF  OvmfPkg/LinuxInitrdDynamicShellCommand/LinuxInitrdDynamicShellCommand.inf
+!endif
+!if $(BUILD_SHELL) == TRUE
+INF  ShellPkg/Application/Shell/Shell.inf
+!endif
+
+INF MdeModulePkg/Logo/LogoDxe.inf
+
+INF OvmfPkg/TdxDxe/TdxDxe.inf
+
+#
+# Network modules
+#
+!if $(E1000_ENABLE)
+  FILE DRIVER = 5D695E11-9B3F-4b83-B25F-4A8D5D69BE07 {
+    SECTION PE32 = Intel3.5/EFIX64/E3522X2.EFI
+  }
+!endif
+!include NetworkPkg/Network.fdf.inc
+  INF  OvmfPkg/VirtioNetDxe/VirtioNet.inf
+
+#
+# Usb Support
+#
+INF  MdeModulePkg/Bus/Pci/UhciDxe/UhciDxe.inf
+INF  MdeModulePkg/Bus/Pci/EhciDxe/EhciDxe.inf
+INF  MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe.inf
+INF  MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
+INF  MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf
+INF  MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
+
+!ifdef $(CSM_ENABLE)
+INF  OvmfPkg/Csm/BiosThunk/VideoDxe/VideoDxe.inf
+INF  OvmfPkg/Csm/LegacyBiosDxe/LegacyBiosDxe.inf
+INF  RuleOverride=CSM OvmfPkg/Csm/Csm16/Csm16.inf
+!else
+INF  OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf
+!endif
+
+INF  OvmfPkg/QemuRamfbDxe/QemuRamfbDxe.inf
+INF  OvmfPkg/VirtioGpuDxe/VirtioGpu.inf
+INF  OvmfPkg/PlatformDxe/Platform.inf
+INF  OvmfPkg/AmdSevDxe/AmdSevDxe.inf
+INF  OvmfPkg/IoMmuDxe/IoMmuDxe.inf
+
+!if $(SMM_REQUIRE) == TRUE
+INF  OvmfPkg/SmmAccess/SmmAccess2Dxe.inf
+INF  OvmfPkg/SmmControl2Dxe/SmmControl2Dxe.inf
+INF  OvmfPkg/CpuS3DataDxe/CpuS3DataDxe.inf
+INF  MdeModulePkg/Core/PiSmmCore/PiSmmIpl.inf
+INF  MdeModulePkg/Core/PiSmmCore/PiSmmCore.inf
+INF  OvmfPkg/CpuHotplugSmm/CpuHotplugSmm.inf
+INF  UefiCpuPkg/CpuIo2Smm/CpuIo2Smm.inf
+INF  MdeModulePkg/Universal/LockBox/SmmLockBox/SmmLockBox.inf
+INF  UefiCpuPkg/PiSmmCpuDxeSmm/PiSmmCpuDxeSmm.inf
+
+#
+# Variable driver stack (SMM)
+#
+INF  OvmfPkg/QemuFlashFvbServicesRuntimeDxe/FvbServicesSmm.inf
+INF  MdeModulePkg/Universal/FaultTolerantWriteDxe/FaultTolerantWriteSmm.inf
+INF  MdeModulePkg/Universal/Variable/RuntimeDxe/VariableSmm.inf
+INF  MdeModulePkg/Universal/Variable/RuntimeDxe/VariableSmmRuntimeDxe.inf
+
+!else
+
+#
+# Variable driver stack (non-SMM)
+#
+INF  OvmfPkg/QemuFlashFvbServicesRuntimeDxe/FvbServicesRuntimeDxe.inf
+INF  OvmfPkg/EmuVariableFvbRuntimeDxe/Fvb.inf
+INF  MdeModulePkg/Universal/FaultTolerantWriteDxe/FaultTolerantWriteDxe.inf
+INF  MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf
+!endif
+
+#
+# kAFL DXE harness
+#
+INF  kAFLDxeHarnessPkg/Dxe/kAFLDxe.inf
+
+#
+# TPM support
+#
+!include OvmfPkg/OvmfTpmDxe.fdf.inc

@@ -1,0 +1,43 @@
+## @file kAFLDxeTargetLib.inf
+#
+# Copyright 2020 Intel Corporation. All rights reserved.
+# SPDX-License-Identifier: BSD-2-Clause
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = kAFLDxeTargetLib
+  MODULE_UNI_FILE                = kAFLDxeTargetLib.uni
+  FILE_GUID                      = A6020274-067D-40B2-B007-BE19B6EEF420
+  VERSION_STRING                 = 1.0
+  MODULE_TYPE                    = BASE
+  LIBRARY_CLASS                  = kAFLDxeTargetLib
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  kAFLDxeTargetLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  kAFLAgentPkg/kAFLAgentPkg.dec
+  kAFLDxeHarnessPkg/kAFLDxeHarnessPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  PrintLib
+  BaseMemoryLib
+  MemoryAllocationLib
+  UefiLib
+  PcdLib
+  DebugLib
+  UefiBootServicesTableLib
+  DevicePathLib
+  UefiRuntimeServicesTableLib
+  kAFLAgentLib

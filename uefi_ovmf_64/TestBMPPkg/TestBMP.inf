@@ -48,5 +48,4 @@ PcdLib
 DebugPrintErrorLevelLib
 UefiApplicationEntryPoint
 UefiLib
-CpuExceptionHandlerLib
-
+# CpuExceptionHandlerLib

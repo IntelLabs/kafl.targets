@@ -1,16 +1,15 @@
 ## Automatic binary patch by kAFL does not work - inject manual hypercall here.
 ## Also remove the delay to launch the target binary via startup.nsh
-
 diff --git a/ShellPkg/Application/Shell/Shell.c b/ShellPkg/Application/Shell/Shell.c
-index d16adae0ea..f20b023969 100644
+index df00adfdfa..b91ec42e41 100644
 --- a/ShellPkg/Application/Shell/Shell.c
 +++ b/ShellPkg/Application/Shell/Shell.c
-@@ -923,7 +923,7 @@ ProcessCommandLine(
+@@ -990,7 +990,7 @@ ProcessCommandLine (
    ShellInfoObject.ShellInitSettings.BitUnion.Bits.Delay        = FALSE;
    ShellInfoObject.ShellInitSettings.BitUnion.Bits.Exit         = FALSE;
    ShellInfoObject.ShellInitSettings.BitUnion.Bits.NoNest       = FALSE;
--  ShellInfoObject.ShellInitSettings.Delay = 5;
-+  ShellInfoObject.ShellInitSettings.Delay = 0;
+-  ShellInfoObject.ShellInitSettings.Delay                      = 5;
++  ShellInfoObject.ShellInitSettings.Delay                      = 0;
  
    //
    // Start LoopVar at 0 to parse only optional arguments at Argv[0]

@@ -1,0 +1,15 @@
+## @file kAFLDxeTargetPkg.dec
+#
+# Copyright 2020 Intel Corporation. All rights reserved.
+# SPDX-License-Identifier: BSD-2-Clause
+#
+##
+
+[Defines]
+  DEC_SPECIFICATION              = 0x00010005
+  PACKAGE_NAME                   = kAFLDxeTargetPkg
+  PACKAGE_GUID                   = 06802E10-9017-4BF5-993F-B186362B15CF
+  PACKAGE_VERSION                = 0.01
+
+[LibraryClasses]
+  kAFLDxeTargetLib|Include/Library/kAFLDxeTargetLib.h

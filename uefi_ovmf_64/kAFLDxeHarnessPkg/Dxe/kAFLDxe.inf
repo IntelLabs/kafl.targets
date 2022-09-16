@@ -1,0 +1,39 @@
+## @file
+#  Implements non DXE side of a fuzzing harness
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = kAFLDxe
+  FILE_GUID                      = c94d7d42-f325-4a69-ac06-50334c029c2a
+  MODULE_TYPE                    = DXE_RUNTIME_DRIVER
+  PI_SPECIFICATION_VERSION       = 0x0001000A
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = InitializekAFLDxe
+
+[Sources]
+  kAFLDxe.c
+  kAFLDxe.h
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  kAFLDxeHarnessPkg/kAFLDxeHarnessPkg.dec
+  kAFLAgentPkg/kAFLAgentPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  MemoryAllocationLib
+  UefiDriverEntryPoint
+  DebugLib
+  UefiBootServicesTableLib
+  kAFLAgentLib
+  kAFLDxeTargetLib
+
+[Protocols]
+  gEfikAFLDxeProtocolGuid                       ## PRODUCES
+
+[Depex]
+  TRUE

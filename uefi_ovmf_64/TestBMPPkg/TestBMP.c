@@ -27,26 +27,24 @@ UINTN
 EFIAPI
 GetMaxBufferSize ( VOID )
 {
-	return TOTAL_SIZE;
+  return TOTAL_SIZE;
 }
 
 VOID
-EFIAPI
+  EFIAPI
 InitTestHarness (VOID)
 {
-	/* kAFL debug info */
-	Print(L"Mapping info: TranslateBmpToGopBlt is at %x\n", (void*)TranslateBmpToGopBlt);
-	Print(L"Mapping info: DumpCpuContext is at %x\n", (void*)DumpCpuContext);
-	//Print(L"Mapping info: DumpModuleImageInfo is at %x\n", (void*)DumpModuleImageInfo);
-	//
-	/* Override target's word with autodetection
-	 *
-	 * Qemu log indicates the target is detected as 32bit even when OVMF+App are
-	 * compiled for X64. This overrides the auto-detection and makes Redqueen
-	 * actually find some bugs instead of just causing timeouts.
-	 */
+  /* kAFL debug info */
+  Print(L"Mapping info: TranslateBmpToGopBlt is at %x\n", (void*)TranslateBmpToGopBlt);
+  //
+  /* Override target's word with autodetection
+   *
+   * Qemu log indicates the target is detected as 32bit even when OVMF+App are
+   * compiled for X64. This overrides the auto-detection and makes Redqueen
+   * actually find some bugs instead of just causing timeouts.
+   */
 #if defined(__x86_64__)
-	kAFL_hypercall(HYPERCALL_KAFL_USER_SUBMIT_MODE, KAFL_MODE_64);
+  kAFL_hypercall(HYPERCALL_KAFL_USER_SUBMIT_MODE, KAFL_MODE_64);
 #endif
 
 }
@@ -54,36 +52,36 @@ InitTestHarness (VOID)
 EFI_STATUS
 EFIAPI
 RunTestHarness (
-		IN VOID *input,
-		IN UINTN inputSize
-		)
+    IN VOID *input,
+    IN UINTN inputSize
+    )
 {
-	EFI_STATUS                                    Status;
-	EFI_GRAPHICS_OUTPUT_BLT_PIXEL                 *Blt;
-	UINTN                                         BltSize;
-	UINTN                                         Height;
-	UINTN                                         Width;
-	VOID                                          *BmpBuffer;
-	IN UINTN                                      FileSize;
+  EFI_STATUS                                    Status;
+  EFI_GRAPHICS_OUTPUT_BLT_PIXEL                 *Blt;
+  UINTN                                         BltSize;
+  UINTN                                         Height;
+  UINTN                                         Width;
+  VOID                                          *BmpBuffer;
+  IN UINTN                                      FileSize;
 
-	// input params
-	BmpBuffer = input;
-	FileSize = inputSize;
-	// output params
-	Blt = NULL;
-	Width = 0;
-	Height = 0;
-	Status = TranslateBmpToGopBlt (
-			BmpBuffer,
-			FileSize,
-			&Blt,
-			&BltSize,
-			&Height,
-			&Width
-			);
+  // input params
+  BmpBuffer = input;
+  FileSize = inputSize;
+  // output params
+  Blt = NULL;
+  Width = 0;
+  Height = 0;
+  Status = TranslateBmpToGopBlt (
+      BmpBuffer,
+      FileSize,
+      &Blt,
+      &BltSize,
+      &Height,
+      &Width
+      );
 
-	if (Blt)
-		FreePool(Blt);
+  if (Blt)
+    FreePool(Blt);
 
-	return Status;
+  return Status;
 }

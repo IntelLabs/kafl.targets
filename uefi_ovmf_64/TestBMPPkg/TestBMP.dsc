@@ -6,8 +6,8 @@
 ##
 
 [Defines]
-  PLATFORM_NAME			         = TestBMP
-  PLATFORM_GUID                  = B66DACBB-080C-4DBE-90DD-59F0D9EF87A4  
+  PLATFORM_NAME                  = TestBMP
+  PLATFORM_GUID                  = B66DACBB-080C-4DBE-90DD-59F0D9EF87A4
   PLATFORM_VERSION               = 0.01
   DSC_SPECIFICATION              = 0x00010005
   OUTPUT_DIRECTORY               = Build/TestBMPPkg
@@ -35,8 +35,10 @@
   UefiDriverEntryPoint|MdePkg/Library/UefiDriverEntryPoint/UefiDriverEntryPoint.inf
   DevicePathLib|MdePkg/Library/UefiDevicePathLib/UefiDevicePathLib.inf
   UefiRuntimeServicesTableLib|MdePkg/Library/UefiRuntimeServicesTableLib/UefiRuntimeServicesTableLib.inf
-  
-  CpuExceptionHandlerLib|UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf
+
+#   VmgExitLib|OvmfPkg/Library/VmgExitLib/VmgExitLib.inf
+#   CpuExceptionHandlerLib|UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf
+  RegisterFilterLib|MdePkg/Library/RegisterFilterLibNull/RegisterFilterLibNull.inf
   SynchronizationLib|MdePkg/Library/BaseSynchronizationLib/BaseSynchronizationLib.inf
   LocalApicLib|UefiCpuPkg/Library/BaseXApicX2ApicLib/BaseXApicX2ApicLib.inf
   PeCoffGetEntryPointLib|MdePkg/Library/BasePeCoffGetEntryPointLib/BasePeCoffGetEntryPointLib.inf
@@ -47,6 +49,8 @@
   DxeServicesTableLib|MdePkg/Library/DxeServicesTableLib/DxeServicesTableLib.inf
   ReportStatusCodeLib|MdePkg/Library/BaseReportStatusCodeLibNull/BaseReportStatusCodeLibNull.inf
   HobLib|MdePkg/Library/DxeHobLib/DxeHobLib.inf
+
+  MemEncryptSevLib|OvmfPkg/Library/BaseMemEncryptSevLib/DxeMemEncryptSevLib.inf
 
 [Components]
   TestBMPPkg/TestBMP.inf
