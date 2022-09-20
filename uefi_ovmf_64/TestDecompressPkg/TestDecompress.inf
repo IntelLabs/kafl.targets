@@ -48,5 +48,3 @@ DebugPrintErrorLevelLib
 UefiApplicationEntryPoint
 UefiLib
 UefiDecompressLib
-CpuExceptionHandlerLib
-

@@ -99,8 +99,6 @@ ERROR:
 VOID EFIAPI InitTestHarness(VOID)
 {
 	Print(L"Mapping info: UefiDecompressGetInfo is at %x\n", (void*)(UefiDecompressGetInfo));
-	Print(L"Mapping info: DumpCpuContext is at %x\n", (void*)DumpCpuContext);
-	//Print(L"Mapping info: DumpModuleImageInfo is at %x\n", (void*)DumpModuleImageInfo);
 
 	/* Override target's word with autodetection
 	 *
