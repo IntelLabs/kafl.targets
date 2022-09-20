@@ -8,6 +8,9 @@
 
 set -e
 
+EDK2_REPO="https://github.com/IntelLabs/kafl.edk2.git"
+EDK2_BRANCH="kafl/edk2-2c17d676e4"
+
 function usage() {
   echo
   echo "Build and fuzz the UEFI OVMF sample."
@@ -46,9 +49,9 @@ function install_edk2()
     echo "[*] Folder exists, assume it is already patched.."
     pushd $EDK2_ROOT
   else
-    git clone https://github.com/tianocore/edk2 $EDK2_ROOT
-    pushd $EDK2_ROOT
-    git checkout -b edk2-stable201905
+    git clone "$EDK2_REPO" "$EDK2_ROOT"
+    pushd "$EDK2_ROOT"
+    git checkout "$EDK2_BRANCH"
     git submodule update --init --recursive
     patch -p1 < $SCRIPT_ROOT/edk2_kafl.patch || exit
     patch -p1 < $SCRIPT_ROOT/edk2_kafl_ovmf.patch || exit
