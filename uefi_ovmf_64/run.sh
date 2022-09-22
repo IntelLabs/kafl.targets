@@ -12,30 +12,29 @@ EDK2_REPO="https://github.com/IntelLabs/kafl.edk2.git"
 EDK2_BRANCH="kafl/edk2-2c17d676e4"
 
 function usage() {
-  echo
-  echo "Build and fuzz the UEFI OVMF sample."
-  echo
-  echo "This script assumes KAFL at $KAFL_ROOT and EDK2 cloned to $EDK2_ROOT."
-  echo "Build settings in Conf/target.txt will be overridden with '$BUILD_OPTS'."
-  echo
-  echo "Usage: $0 <target>"
-  echo
-  echo Targets:
-  echo "  fuzz                         - fuzz sample agent in kAFL"
-  echo "  noise <file>                 - process <file> in trace mode to collect coverage info"
-  echo "  cov <dir>                    - process <dir> in trace mode to collect coverage info"
-  echo "  edk2                         - download edk2 branch + build deps"
-  echo "  dxe_null                     - build kAFL Dxe NULL Fuzzing platform"
-  echo "  ovmf                         - Build genuine OVMF platform, for post"
-  echo "                                     DXE fuzzing"
-  echo "  app                          - Build application the harness"
+  cat >&2 << HERE
+
+Build and fuzz the UEFI OVMF sample.
+
+This script assumes KAFL at $KAFL_ROOT and EDK2 cloned to $EDK2_ROOT.
+Build settings in Conf/target.txt will be overridden with '$BUILD_OPTS'.
+
+Usage: $0 <target>
+
+Targets:
+  fuzz           - fuzz sample agent in kAFL
+  noise <file>   - process <file> in trace mode to collect coverage info
+  cov <dir>      - process <dir> in trace mode to collect coverage info
+  edk2           - download edk2 branch + build deps
+  dxe_null       - build kAFL Dxe NULL Fuzzing platform
+  ovmf           - Build genuine OVMF platform, for post DXE fuzzing
+  app            - Build application the harness
+HERE
   exit
 }
 
 function fail {
-  echo
-  echo -e "Error: $1"
-  echo
+  echo -e "\nError: $@\n" >&2
   exit 1
 }
 
@@ -64,12 +63,12 @@ function install_edk2()
 
 function build_ovmf()
 {
-  [ -d $EDK2_ROOT/BaseTools ] || ( echo "Please set correct EDK2_ROOT"; exit )
+  [ -d $EDK2_ROOT/BaseTools ] || fail "Please set correct \$EDK2_ROOT"
   pushd $EDK2_ROOT
   export EDK_TOOLS_PATH=$PWD/BaseTools
   . edksetup.sh BaseTools
 
-  which build || exit
+  which build || fail "Could not find 'build' util. Abort."
 
   build $BUILD_OPTS -p OvmfPkg/OvmfPkg${OVMF_DSC_ARCH}.dsc
 
@@ -87,13 +86,13 @@ function build_platform()
   echo
   sleep 1
 
-  [ -d $EDK2_ROOT/BaseTools ] || ( echo "Please set correct EDK2_ROOT"; exit )
+  [ -d $EDK2_ROOT/BaseTools ] || fail "Please set correct \$EDK2_ROOT"
   pushd $EDK2_ROOT
   export PACKAGES_PATH=$SCRIPT_ROOT
   export EDK_TOOLS_PATH=$PWD/BaseTools
   . edksetup.sh BaseTools
 
-  which build || exit
+  which build || fail "Could not find 'build' util. Abort."
 
   # Already built with my OVMF platform
   # @see in kAFLDxeHarnessPkg/App/kAFLApp.inf
