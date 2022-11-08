@@ -1,0 +1,57 @@
+#!/bin/bash -e
+
+# 
+# Copyright (C)  2022  Intel Corporation. 
+#
+# This software and the related documents are Intel copyrighted materials, and
+# your use of them is governed by the express license under which they were
+# provided to you ("License"). Unless the License provides otherwise, you may
+# not use, modify, copy, publish, distribute, disclose or transmit this software
+# or the related documents without Intel's prior written permission.  This
+# software and the related documents are provided as is, with no express or
+# implied warranties, other than those that are expressly stated in the License.
+#
+# SPDX-License-Identifier: MIT
+
+# Helper script for generating busybox-based initrd rootfs
+
+set -e
+set -u
+
+SCRIPT_ROOT=$EXAMPLES_ROOT/linux-user
+TEMPLATE=$SCRIPT_ROOT/initrd_template
+
+fatal() {
+	echo
+	echo -e "\nError: $@\n" >&2
+	echo -e "Usage:\n\t$(basename $0) <path/to/initrd.cpio.gz>\n" >&2
+	exit 1
+}
+
+test "$#" -ne 1 || fatal "Need exactly one argument: <path/to/initrd.cpio.gz>"
+test -d "$TEMPLATE" || fatal "Could not find initrd template folder >>$TEMPLATE<<"
+
+echo "[*] Installing latest busybox-static tools..."
+#sudo apt install busybox-static || fatal "Failed to install busybox?"
+BUSYBOX=$(which busybox) || fatal "Could not find busybox binary."
+
+TARGET_INITRD="$(realpath "$1")"
+TARGET_ROOT="$(mktemp -d)"
+
+test -z "$TARGET_INITRD" && fatal "Output path $TARGET_INITRD is not set. Abort."
+
+echo "[*] Building busybox rootfs at $TARGET_ROOT..."
+
+cp -r $TEMPLATE/* "$TARGET_ROOT"/
+pushd "$TARGET_ROOT" > /dev/null
+	mkdir -p  bin dev  etc  lib  lib64  mnt/root  proc  root  sbin  sys  usr/bin
+	$BUSYBOX --install -s bin/
+	cp $BUSYBOX usr/bin
+popd > /dev/null
+
+# bless and create final image
+$SCRIPT_ROOT/scripts/bless_initrd.sh "$TARGET_ROOT"
+$TARGET_ROOT/build.sh "$TARGET_INITRD"
+
+# cleanup
+rm -rf "$TARGET_ROOT"
