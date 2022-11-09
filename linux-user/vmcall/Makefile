@@ -20,7 +20,12 @@ vmcall.cpio.gz: vmcall loader.sh
 
 test: vmcall.cpio.gz
 	# default kAFL config enables Linux serial console, see $WORKDIR/serial_00.log
-	kafl_fuzz.py --kernel /boot/vmlinuz-$$(uname -r) --initrd $^ --purge -v -w $$KAFL_WORKDIR
+	kafl_fuzz.py \
+		--kernel /boot/vmlinuz-$$(uname -r) \
+		--initrd $^ \
+		--work-dir $$KAFL_WORKDIR \
+		--sharedir $$(pwd) \
+		--purge -v --log
 
 clean:
 	rm -f vmcall

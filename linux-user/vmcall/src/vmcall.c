@@ -17,14 +17,23 @@
  * vmcall.c - a helper tool for placing kAFL/Nyx hypercalls
  */
 
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdbool.h>
+
 #include <errno.h>
+#include <assert.h>
+
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 #include <sys/select.h>
 #include <libgen.h>
@@ -60,12 +69,35 @@ struct cmd_table {
 static int cmd_vmcall(int argc, char **argv);
 static int cmd_hcat(int argc, char **argv);
 static int cmd_habort(int argc, char **argv);
-	
-struct cmd_table cmds[] = {
+static int cmd_hget(int argc, char **argv);
+static int cmd_hpush(int argc, char **argv);
+static int cmd_hpanic(int argc, char **argv);
+static int cmd_hrange(int argc, char **argv);
+
+struct cmd_table cmd_list[] = {
 	{ "vmcall", cmd_vmcall },
 	{ "hcat",   cmd_hcat   },
-	{ "habort", cmd_habort }
+	{ "habort", cmd_habort },
+	{ "hget",   cmd_hget   },
+	{ "hpush",  cmd_hpush  },
+	{ "hpanic", cmd_hpanic },
+	{ "hrange", cmd_hrange  },
 };
+
+static void usage()
+{
+	char *msg =
+		"\nUsage: vmcall [cmd] [args...]\n\n"
+		"\twhere cmd := { vmcall, hcat, habort, hget, hpush, hpanic, hrange }\n";
+
+	fputs(msg, stderr);
+}
+
+static void usage_error(const char *msg)
+{
+	fputs(msg, stderr);
+	usage();
+}
 
 static enum nyx_cpu_type get_nyx_cpu_type(void)
 {
@@ -88,12 +120,13 @@ static enum nyx_cpu_type get_nyx_cpu_type(void)
 	}
 }
 
-static void hypercall(unsigned id, uintptr_t arg)
+static unsigned hypercall(unsigned id, uintptr_t arg)
 {
 	if (enable_vmcall) {
-		kAFL_hypercall(id, arg);
+		return kAFL_hypercall(id, arg);
 	} else {
-		debug_printf("Skipping vmcall(0x%x,0x%lx) ..\n", id, arg);
+		debug_printf("\t# vmcall(0x%x,0x%lx) skipped..\n", id, arg);
+		return 0;
 	}
 }
 
@@ -121,8 +154,8 @@ static size_t file_to_hprintf(FILE *f)
 
 	while (!feof(f)) {
 		read = fread(hprintf_buffer, 1, sizeof(hprintf_buffer), f);
-		if (read <= 0) {
-			fprintf(stderr, "Error reading from file descriptor %d", fileno(f));
+		if (read < 0) {
+			fprintf(stderr, "Error reading from file descriptor %d\n", fileno(f));
 			return written;
 		}
 
@@ -150,10 +183,10 @@ static int cmd_hcat(int argc, char **argv)
 		written += file_to_hprintf(stdin);
 	}
 
-	for (int i=0; i<argc; i++) {
+	for (int i = optind; i < argc; i++) {
 		f = fopen(argv[i], "r");
 		if (!f) {
-			fprintf(stderr, "Error opening file %s: %s\n", argv[i], strerror(errno));
+			fprintf(stderr, "Error opening file %s: %s\n", argv[optind], strerror(errno));
 			return written;
 		} else {
 			written += file_to_hprintf(f);
@@ -166,11 +199,9 @@ static int cmd_hcat(int argc, char **argv)
 
 static int cmd_habort(int argc, char **argv)
 {
-	debug_printf("[habort] start...\n");
-
-	if (argc > 0) {
-		debug_printf("[habort] abort with '%s'\n", argv[0]);
-		hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)argv[0]);
+	if (argv[optind]) {
+		debug_printf("[habort] msg := '%s'\n", argv[optind]);
+		hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)argv[optind]);
 	} else {
 		debug_printf("[habort] abort with '%s'\n", "vmcall/habort called.");
 		hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)"vmcall/habort called.");
@@ -179,18 +210,156 @@ static int cmd_habort(int argc, char **argv)
 	return 0;
 }
 
-static int cmd_vmcall(int argc, char **argv)
+static int hget_file(char* src_path, mode_t flags)
 {
-	debug_printf("[vmcall] start...\n");
+	static req_data_bulk_t req_file __attribute((aligned(PAGE_SIZE)));
 
-	// check if actual command is in argv[1]
-	for (int i=0; i<ARRAY_SIZE(cmds); i++) {
-		if (0 == strncmp(basename(argv[0]), cmds[i].name, strlen(cmds[i].name))) {
-			return cmds[i].handler(argc-1, argv+1);
+	int ret = 0;
+	const int num_pages = 256; // 1MB at a time
+
+	size_t scratch_size = num_pages * PAGE_SIZE;
+	uint8_t *scratch_buf = malloc_resident_pages(num_pages);
+
+	for (int i=0; i<num_pages; i++) {
+		req_file.addresses[i] = (uintptr_t)(scratch_buf + i * PAGE_SIZE);
+	}
+	req_file.num_addresses = num_pages;
+
+	if (strlen(src_path) < sizeof(req_file.file_name)) {
+		strcpy(req_file.file_name, src_path);
+	} else {
+		return -ENAMETOOLONG;
+	}
+
+	char *dst_path = basename(src_path); // src_path mangled!
+	int fd = creat(dst_path, flags);
+	if (fd == -1) {
+		fprintf(stderr, "Error opening file %s: %s\n", dst_path, strerror(errno));
+		return errno;
+	}
+
+	unsigned long read = 0;
+	unsigned long written = 0;
+	do {
+		read = hypercall(HYPERCALL_KAFL_REQ_STREAM_DATA_BULK, (uintptr_t)&req_file);
+		if (read == 0xFFFFFFFFFFFFFFFFUL) {
+			fprintf(stderr, "Could not get %s from sharedir. Check Qemu logs.\n",
+					req_file.file_name);
+			ret = -EIO;
+			goto err_out;
+		}
+
+		if (read != write(fd, scratch_buf, read)) {
+			fprintf(stderr, "Failed writing to %s: %s\n", dst_path, strerror(errno));
+			ret = -EIO;
+			goto err_out;
+		}
+
+		written += read;
+		debug_printf("[hget]  %s => %s (read: %lu / written: %lu)\n",
+				req_file.file_name, dst_path, read, written);
+
+	} while (read == scratch_size);
+
+	fprintf(stderr, "[hget]  Successfully fetched %s (%lu bytes)\n", dst_path, written);
+
+err_out:
+	close(fd);
+	free(scratch_buf);
+	return ret;
+}
+
+static int cmd_hget(int argc, char **argv)
+{
+	int ret = 0;
+	char *dst_root = NULL;
+	int opt;
+	mode_t fmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
+
+	while ((opt = getopt(argc, argv, "xo:")) != -1) {
+		switch (opt) {
+			case 'x':
+				fmode |= S_IXUSR | S_IXGRP | S_IXOTH;
+				break;
+			case 'o':
+				dst_root = strdup(optarg);
+				break;
+			default:
+				fprintf(stderr, "Usage: hget [-x] [-o path/to/dest/] file [file..]\n");
+				return -EINVAL;
 		}
 	}
 
-	// default vmcall action
+	if (optind >= argc) {
+		fprintf(stderr, "Missing argument: filename\n");
+		return -EINVAL;
+	}
+
+	if (dst_root) {
+		ret = chdir(dst_root);
+		free(dst_root);
+		if (ret != 0) {
+			fprintf(stderr, "Failed to access %s: %s", dst_root, strerror(errno));
+			return errno;
+		}
+	}
+
+	for (int i = optind; i < argc && ret == 0; i++) {
+		ret = hget_file(argv[i], fmode);
+		if (ret != 0)
+			break;
+	}
+	return ret;
+}
+
+//static void kafl_dump_observed_payload(char *filename, int append, uint8_t *buf, uint32_t buflen)
+//{
+//	static char fname_buf[128];
+//	strncpy(fname_buf, filename, sizeof(fname_buf));
+//	dump_file.file_name_str_ptr = (uint64_t)fname_buf;
+//	dump_file.data_ptr = (uint64_t)buf;
+//	dump_file.bytes = buflen;
+//	dump_file.append = append;
+//
+//	kAFL_hypercall(HYPERCALL_KAFL_DUMP_FILE, (uintptr_t)&dump_file);
+//}
+
+static int cmd_hpush(int argc, char **argv)
+{
+	kafl_dump_file_t put_req;
+
+	return 0;
+}
+
+static int cmd_hpanic(int argc, char **argv) { return 0; }
+
+static int cmd_hrange(int argc, char **argv) { return 0; }
+
+/**
+ * Call subcommand based on argv[0]
+ */
+static int cmd_dispatch(int argc, char **argv)
+{
+	for (int i=0; i<ARRAY_SIZE(cmd_list); i++) {
+		if (0 == strncmp(basename(argv[optind]), cmd_list[i].name, strlen(cmd_list[i].name))) {
+			optind += 1; // increment argv offset
+			return cmd_list[i].handler(argc, argv);
+		}
+	}
+	return -1;
+}
+
+static int cmd_vmcall(int argc, char **argv)
+{
+	int ret = 0;
+
+	debug_printf("[vmcall] start...\n");
+
+	// check if next arg is the actual command
+	ret = cmd_dispatch(argc, argv);
+
+	// fallback vmcall action
+	return 0;
 }
 
 int main(int argc, char **argv)
@@ -204,10 +373,11 @@ int main(int argc, char **argv)
 		fprintf(stderr, "VMCALL disabled.\n");
 	}
 
-	for (int i=0; i< ARRAY_SIZE(cmds); i++) {
-		if (0 == strncmp(basename(argv[0]), cmds[i].name, strlen(cmds[i].name))) {
-			return cmds[i].handler(argc-1, argv+1);
-		}
+	optind = 0; // start parsing at argv[0]
+	ret = cmd_dispatch(argc, argv);
+
+	if (ret == -1) {
+		usage_error("Invalid command");
 	}
 
 	return ret;
