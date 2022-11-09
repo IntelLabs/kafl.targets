@@ -42,8 +42,6 @@
 
 char hprintf_buffer[HPRINTF_MAX_SIZE] __attribute__((aligned(4096)));
 
-bool enable_vmcall = false;
-
 #ifdef DEBUG
 #define debug_printf(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
 #else
@@ -55,11 +53,13 @@ bool enable_vmcall = false;
 
 #define ARRAY_SIZE(ARRAY) (sizeof(ARRAY)/sizeof((ARRAY)[0]))
 
-enum nyx_cpu_type {
+typedef enum {
 	nyx_cpu_none = 0,
 	nyx_cpu_v1, /* Nyx CPU used by KVM-PT */
 	nyx_cpu_v2  /* Nyx CPU used by vanilla KVM + VMWare backdoor */
-};
+} nyx_cpu_type_t;
+
+nyx_cpu_type_t nyx_cpu_type = nyx_cpu_none;
 
 struct cmd_table {
 	char *name;
@@ -73,6 +73,7 @@ static int cmd_hget(int argc, char **argv);
 static int cmd_hpush(int argc, char **argv);
 static int cmd_hpanic(int argc, char **argv);
 static int cmd_hrange(int argc, char **argv);
+static int cmd_is_nyx(int argc, char **argv);
 
 struct cmd_table cmd_list[] = {
 	{ "vmcall", cmd_vmcall },
@@ -81,7 +82,8 @@ struct cmd_table cmd_list[] = {
 	{ "hget",   cmd_hget   },
 	{ "hpush",  cmd_hpush  },
 	{ "hpanic", cmd_hpanic },
-	{ "hrange", cmd_hrange  },
+	{ "hrange", cmd_hrange },
+	{ "is_nyx", cmd_is_nyx },
 };
 
 static void usage()
@@ -99,7 +101,7 @@ static void usage_error(const char *msg)
 	usage();
 }
 
-static enum nyx_cpu_type get_nyx_cpu_type(void)
+static nyx_cpu_type_t get_nyx_cpu_type(void)
 {
 	uint32_t regs[4];
 	char str[17];
@@ -120,13 +122,18 @@ static enum nyx_cpu_type get_nyx_cpu_type(void)
 	}
 }
 
-static unsigned hypercall(unsigned id, uintptr_t arg)
+static unsigned long hypercall(unsigned id, uintptr_t arg)
 {
-	if (enable_vmcall) {
-		return kAFL_hypercall(id, arg);
-	} else {
-		debug_printf("\t# vmcall(0x%x,0x%lx) skipped..\n", id, arg);
-		return 0;
+	switch (nyx_cpu_type) {
+		case nyx_cpu_v1:
+			debug_printf("\t# vmcall(0x%x,0x%lx) ..\n", id, arg);
+			return kAFL_hypercall(id, arg);
+		case nyx_cpu_v2:
+		case nyx_cpu_none:
+			debug_printf("\t# vmcall(0x%x,0x%lx) skipped..\n", id, arg);
+			return 0;
+		default:
+			assert(false);
 	}
 }
 
@@ -177,8 +184,6 @@ static int cmd_hcat(int argc, char **argv)
 	size_t read = 0;
 	size_t written = 0;
 	
-	debug_printf("[hcat] start...\n");
-
 	if (file_is_ready(fileno(stdin))) {
 		written += file_to_hprintf(stdin);
 	}
@@ -203,7 +208,7 @@ static int cmd_habort(int argc, char **argv)
 		debug_printf("[habort] msg := '%s'\n", argv[optind]);
 		hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)argv[optind]);
 	} else {
-		debug_printf("[habort] abort with '%s'\n", "vmcall/habort called.");
+		debug_printf("[habort] msg := '%s'\n", "vmcall/habort called.");
 		hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)"vmcall/habort called.");
 	}
 
@@ -335,6 +340,11 @@ static int cmd_hpanic(int argc, char **argv) { return 0; }
 
 static int cmd_hrange(int argc, char **argv) { return 0; }
 
+static int cmd_is_nyx(int argc, char **argv)
+{
+		return nyx_cpu_type;
+}
+
 /**
  * Call subcommand based on argv[0]
  */
@@ -346,37 +356,33 @@ static int cmd_dispatch(int argc, char **argv)
 			return cmd_list[i].handler(argc, argv);
 		}
 	}
-	return -1;
+	return -EINVAL;
 }
 
 static int cmd_vmcall(int argc, char **argv)
 {
 	int ret = 0;
 
-	debug_printf("[vmcall] start...\n");
-
 	// check if next arg is the actual command
 	ret = cmd_dispatch(argc, argv);
-
-	// fallback vmcall action
-	return 0;
+	if (ret == -EINVAL) {
+		// fallback vmcall action
+		usage();
+		return 0;
+	}
+	return ret;
 }
 
 int main(int argc, char **argv)
 {
 	int ret = 0;
 
-	if (nyx_cpu_v1 == get_nyx_cpu_type()) {
-		fprintf(stderr, "VMCALL enabled.\n");
-		enable_vmcall = true;
-	} else {
-		fprintf(stderr, "VMCALL disabled.\n");
-	}
+	nyx_cpu_type = get_nyx_cpu_type();
 
 	optind = 0; // start parsing at argv[0]
 	ret = cmd_dispatch(argc, argv);
 
-	if (ret == -1) {
+	if (ret == -EINVAL) {
 		usage_error("Invalid command");
 	}
 
