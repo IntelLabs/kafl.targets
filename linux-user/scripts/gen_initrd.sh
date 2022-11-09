@@ -24,34 +24,87 @@ TEMPLATE=$SCRIPT_ROOT/initrd_template
 fatal() {
 	echo
 	echo -e "\nError: $@\n" >&2
-	echo -e "Usage:\n\t$(basename $0) <path/to/initrd.cpio.gz>\n" >&2
+	echo -e "Usage:\n\t$(basename $0) <path/to/initrd.cpio.gz> [FILE...]\n" >&2
 	exit 1
 }
 
-test "$#" -ne 1 || fatal "Need exactly one argument: <path/to/initrd.cpio.gz>"
+# autostart /loader.sh
+function bless_loader()
+{
+	echo "[*] Blessing image to launch /loader.sh"
+
+	pushd "$TARGET_ROOT" > /dev/null
+	chmod a+x loader.sh
+
+	if ls etc/init.d/S0* > /dev/null 2>&1; then
+		# works for buildroot and anything close to sysv init
+		echo "[*] Adding loader.sh to /etc/init.d/ scripts.."
+		ln -sf /loader.sh etc/init.d/S00loader
+	elif ! test -e etc/rcS; then
+		# homebrew initrd may not works for busybox initrd
+		echo "[*] Linking etc/rcS to loader.sh.."
+		ln -sf /loader.sh etc/rcS
+	else
+		echo "Not a sysv init and refuse to overwrite etc/rcS. Please ensure loader.sh is launched on boot."
+	fi
+	popd > /dev/null
+}
+
+# create busybox rootfs
+function create_rootfs()
+{
+	echo "[*] Building busybox rootfs at $TARGET_ROOT..."
+	pushd "$TARGET_ROOT" > /dev/null
+	mkdir -p  bin dev  etc  lib  lib64  mnt/root  proc  root  sbin  sys  usr/bin
+	$BUSYBOX --install -s bin/
+	cp $BUSYBOX usr/bin
+	popd > /dev/null
+}
+
+# inject any additional files, including their dependencies
+function inject_files()
+{
+	echo "[*] Injecting additional files..."
+
+	# copy template files
+	cp -vr $TEMPLATE/* "$TARGET_ROOT"/
+
+	for file in $@; do
+		test -r $file || fatal "Argument <$file> is not a readable file."
+		for dep in $($LDDTREE -l $file|sed s/.*' => '//); do
+			echo "Install $dep to $TARGET_ROOT/$dep"
+			install -D "$dep" $TARGET_ROOT/"$dep"
+		done
+	done
+}
+
+function build_image()
+{
+	echo "[*] Generating final image at $TARGET_INITRD"
+	pushd "$TARGET_ROOT" > /dev/null
+	find . -print0 | cpio --null --create --format=newc | gzip --best  > $TARGET_INITRD
+	popd > /dev/null
+}
+
+
+##
+## main()
+##
+
+test "$#" -ge 1 || fatal "Need ad least one argument: <path/to/initrd.cpio.gz>"
 test -d "$TEMPLATE" || fatal "Could not find initrd template folder >>$TEMPLATE<<"
 
-echo "[*] Installing latest busybox-static tools..."
-#sudo apt install busybox-static || fatal "Failed to install busybox?"
-BUSYBOX=$(which busybox) || fatal "Could not find busybox binary."
+BUSYBOX=$(which busybox) || fatal "Could not find busybox - try 'sudo apt install busybox-static'?"
+LDDTREE=$(which lddtree) || fatal "Could not find lddtree - try 'sudo apt install lddtree'?"
 
-TARGET_INITRD="$(realpath "$1")"
+TARGET_INITRD="$(realpath "$1")"; shift;
 TARGET_ROOT="$(mktemp -d)"
 
 test -z "$TARGET_INITRD" && fatal "Output path $TARGET_INITRD is not set. Abort."
 
-echo "[*] Building busybox rootfs at $TARGET_ROOT..."
+create_rootfs
+inject_files "$@"
+bless_loader
+build_image
 
-cp -r $TEMPLATE/* "$TARGET_ROOT"/
-pushd "$TARGET_ROOT" > /dev/null
-	mkdir -p  bin dev  etc  lib  lib64  mnt/root  proc  root  sbin  sys  usr/bin
-	$BUSYBOX --install -s bin/
-	cp $BUSYBOX usr/bin
-popd > /dev/null
-
-# bless and create final image
-$SCRIPT_ROOT/scripts/bless_initrd.sh "$TARGET_ROOT"
-$TARGET_ROOT/build.sh "$TARGET_INITRD"
-
-# cleanup
 rm -rf "$TARGET_ROOT"

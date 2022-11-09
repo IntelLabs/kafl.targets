@@ -13,6 +13,9 @@ all: vmcall
 vmcall: src/vmcall.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
+test: vmcall loader.sh
+	../scripts/gen_initrd.sh vmcall.cpio.gz vmcall loader.sh
+
 clean:
 	rm -f vmcall
 
