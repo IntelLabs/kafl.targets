@@ -48,45 +48,25 @@ enum nyx_cpu_type {
 	nyx_cpu_v2  /* Nyx CPU used by vanilla KVM + VMWare backdoor */
 };
 
-static int is_nyx_vcpu(void)
-{
-	unsigned long eax, ebx, ecx, edx;
-	char str[8];
-	cpuid(0x80000004, eax, ebx, ecx, edx);	
-
-	for(int j=0;j<4;j++) {
-		str[j] = eax >> (8*j);
-		str[j+4] = ebx >> (8*j);
-	}
-
-	return !memcmp(&str, "NYX vCPU", 8);
-}
-
 static enum nyx_cpu_type get_nyx_cpu_type(void)
 {
-	unsigned long eax,ebx,ecx,edx;
+	uint32_t regs[4];
 	char str[17];
-	cpuid(0x80000004,eax,ebx,ecx,edx);	
 
-	for (int j=0;j<4;j++) {
-		str[j]    = eax >> (8*j);
-		str[j+4]  = ebx >> (8*j);
-		str[j+8]  = ecx >> (8*j);
-		str[j+12] = edx >> (8*j);
-	}
+	cpuid(0x80000004, regs[0], regs[1], regs[2], regs[3]);
+
+	memcpy(str, regs, sizeof(regs));
 	str[16] = '\0';
 	
 	debug_printf("CPUID info: >>%s<<\n", str);
 
-	if (memcmp(&str, "NYX vCPU", 8) != 0) {
+	if (0 == strncmp(str, "NYX vCPU (PT)", sizeof(str))) {
+		return nyx_cpu_v1;
+	} else if (0 == strncmp(str, "NYX vCPU (NO-PT)", sizeof(str))) {
+		return nyx_cpu_v2;
+	} else {
 		return nyx_cpu_none;
 	}
-
-	if (memcmp(&str[8], " (NO-PT)", 8) != 0) {
-		return nyx_cpu_v1;
-	}
-
-	return nyx_cpu_v2;
 }
 
 static void hypercall(unsigned id, uintptr_t arg)
