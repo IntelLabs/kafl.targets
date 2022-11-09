@@ -172,6 +172,6 @@ typedef struct {
 	char file_name[256];
 	uint64_t num_addresses;
 	uint64_t addresses[479];
-} req_data_bulk_t;
+} __attribute__((packed)) req_data_bulk_t;
 
 #endif /* NYX_API_H */
