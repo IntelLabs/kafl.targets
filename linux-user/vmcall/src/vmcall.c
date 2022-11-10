@@ -17,8 +17,6 @@
  * vmcall.c - a helper tool for placing kAFL/Nyx hypercalls
  */
 
-#define _GNU_SOURCE
-
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -30,17 +28,20 @@
 #include <errno.h>
 #include <assert.h>
 
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
-
-#include <sys/select.h>
 #include <libgen.h>
 
 #include <nyx_api.h>
 
-char hprintf_buffer[HPRINTF_MAX_SIZE] __attribute__((aligned(4096)));
+#include "util.h"
+
+
+#define cpuid(in,a,b,c,d)\
+	asm("cpuid": "=a" (a), "=b" (b), "=c" (c), "=d" (d) : "a" (in));
+
+#define ARRAY_SIZE(ARRAY) (sizeof(ARRAY)/sizeof((ARRAY)[0]))
 
 #ifdef DEBUG
 #define debug_printf(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
@@ -48,43 +49,21 @@ char hprintf_buffer[HPRINTF_MAX_SIZE] __attribute__((aligned(4096)));
 #define debug_printf(fmt, ...)
 #endif
 
-#define cpuid(in,a,b,c,d)\
-	asm("cpuid": "=a" (a), "=b" (b), "=c" (c), "=d" (d) : "a" (in));
-
-#define ARRAY_SIZE(ARRAY) (sizeof(ARRAY)/sizeof((ARRAY)[0]))
-
 typedef enum {
 	nyx_cpu_none = 0,
 	nyx_cpu_v1, /* Nyx CPU used by KVM-PT */
 	nyx_cpu_v2  /* Nyx CPU used by vanilla KVM + VMWare backdoor */
 } nyx_cpu_type_t;
 
-nyx_cpu_type_t nyx_cpu_type = nyx_cpu_none;
-
 struct cmd_table {
 	char *name;
 	int (*handler)(int, char**);
 };
 
-static int cmd_vmcall(int argc, char **argv);
-static int cmd_hcat(int argc, char **argv);
-static int cmd_habort(int argc, char **argv);
-static int cmd_hget(int argc, char **argv);
-static int cmd_hpush(int argc, char **argv);
-static int cmd_hpanic(int argc, char **argv);
-static int cmd_hrange(int argc, char **argv);
-static int cmd_is_nyx(int argc, char **argv);
+char hprintf_buffer[HPRINTF_MAX_SIZE] __attribute__((aligned(4096)));
+nyx_cpu_type_t nyx_cpu_type = nyx_cpu_none;
 
-struct cmd_table cmd_list[] = {
-	{ "vmcall", cmd_vmcall },
-	{ "hcat",   cmd_hcat   },
-	{ "habort", cmd_habort },
-	{ "hget",   cmd_hget   },
-	{ "hpush",  cmd_hpush  },
-	{ "hpanic", cmd_hpanic },
-	{ "hrange", cmd_hrange },
-	{ "is_nyx", cmd_is_nyx },
-};
+static int cmd_vmcall(int argc, char **argv);
 
 static void usage()
 {
@@ -135,23 +114,6 @@ static unsigned long hypercall(unsigned id, uintptr_t arg)
 		default:
 			assert(false);
 	}
-}
-
-static bool file_is_ready(int fd)
-{
-	struct timeval tv = {
-		.tv_sec = 0,
-		.tv_usec = 10,
-	};
-
-	fd_set fds;
-	FD_ZERO(&fds);
-	FD_SET(fd, &fds);
-
-	if (!select(fd+1, &fds, NULL, NULL, &tv))
-		return false;
-
-	return true;
 }
 
 static size_t file_to_hprintf(FILE *f)
@@ -317,18 +279,6 @@ static int cmd_hget(int argc, char **argv)
 	return ret;
 }
 
-//static void kafl_dump_observed_payload(char *filename, int append, uint8_t *buf, uint32_t buflen)
-//{
-//	static char fname_buf[128];
-//	strncpy(fname_buf, filename, sizeof(fname_buf));
-//	dump_file.file_name_str_ptr = (uint64_t)fname_buf;
-//	dump_file.data_ptr = (uint64_t)buf;
-//	dump_file.bytes = buflen;
-//	dump_file.append = append;
-//
-//	kAFL_hypercall(HYPERCALL_KAFL_DUMP_FILE, (uintptr_t)&dump_file);
-//}
-
 static int cmd_hpush(int argc, char **argv)
 {
 	kafl_dump_file_t put_req;
@@ -350,6 +300,17 @@ static int cmd_is_nyx(int argc, char **argv)
  */
 static int cmd_dispatch(int argc, char **argv)
 {
+	const static struct cmd_table cmd_list[] = {
+		{ "vmcall", cmd_vmcall },
+		{ "hcat",   cmd_hcat   },
+		{ "habort", cmd_habort },
+		{ "hget",   cmd_hget   },
+		{ "hpush",  cmd_hpush  },
+		{ "hpanic", cmd_hpanic },
+		{ "hrange", cmd_hrange },
+		{ "is_nyx", cmd_is_nyx },
+	};
+
 	for (int i=0; i<ARRAY_SIZE(cmd_list); i++) {
 		if (0 == strncmp(basename(argv[optind]), cmd_list[i].name, strlen(cmd_list[i].name))) {
 			optind += 1; // increment argv offset
