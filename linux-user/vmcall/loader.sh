@@ -5,9 +5,13 @@ cat /proc/cpuinfo |/vmcall hcat
 /vmcall is_nyx
 echo "CPU is Nyx: $?" |/vmcall hcat
 
-/vmcall hget -x vmcall
-/vmcall hget test.bin
+mkdir /fuzz
+/vmcall hget -o /fuzz test.bin
+/vmcall hget -x -o /fuzz vmcall
 
-ls -l |/vmcall hcat
+/vmcall hcat /fuzz/test.bin
+
+ls -l | /vmcall hcat
+ls -l /fuzz | /vmcall hcat
 
 /vmcall habort "return from loader.sh"

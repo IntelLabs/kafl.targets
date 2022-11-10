@@ -161,8 +161,8 @@ static size_t file_to_hprintf(FILE *f)
 
 	while (!feof(f)) {
 		read = fread(hprintf_buffer, 1, sizeof(hprintf_buffer), f);
-		if (read <= 0) {
-			fprintf(stderr, "Error reading from file descriptor %d", fileno(f));
+		if (read < 0) {
+			fprintf(stderr, "Error reading from file descriptor %d\n", fileno(f));
 			return written;
 		}
 
@@ -215,74 +215,71 @@ static int cmd_habort(int argc, char **argv)
 	return 0;
 }
 
-static int hget_file(char* src_path, char *dst_dir, mode_t flags)
+static int hget_file(char* src_path, mode_t flags)
 {
 	static req_data_bulk_t req_file __attribute((aligned(4096)));
 
 	int ret = 0;
-	char *dst_path = NULL;
-	const int PAGE_SIZE = 0x1000;
-	const int MAX_PAGES = 256; // 1MB at a time
+	const int PAGE_SIZE = 4096;
+	const int NUM_PAGES = 256; // 1MB at a time
 
 	if (strlen(src_path) >= sizeof(req_file.file_name)) {
 		return -ENAMETOOLONG;
 	}
 
 	strncpy(req_file.file_name, src_path, sizeof(req_file.file_name));
-
-	if (!dst_dir) {
-		dst_path = src_path;
-	} else {
-		assert(asprintf(&dst_path, "%s/%s", dst_dir, basename(src_path)));
-	}
-
-	int fd = creat(dst_path, flags);
+	
+	char *filename = basename(src_path); // src_path mangled!
+	int fd = creat(filename, flags);
 	if (fd == -1) {
-		fprintf(stderr, "Error opening file %s: %s\n", dst_path, strerror(errno));
+		fprintf(stderr, "Error opening file %s: %s\n", filename, strerror(errno));
 		return errno;
 	}
 
-	size_t data_size = MAX_PAGES*PAGE_SIZE;
+	size_t data_size = NUM_PAGES*PAGE_SIZE;
 	uint8_t *data_ptr = NULL;
 
 	if ((data_ptr = aligned_alloc(PAGE_SIZE, data_size)) == NULL) {
-		fprintf(stderr, "Error file %s: %s\n", dst_path, strerror(errno));
-		return errno;
+		fprintf(stderr, "Error file %s: %s\n", filename, strerror(errno));
+		ret = errno;
+		goto err_out;
 	}
 
-	if (((uintptr_t)data_ptr % PAGE_SIZE) != 0) {
-		fprintf(stderr, "Allocated data buffer is not page aligned: %p. Abort.\n", data_ptr);
-		return -ENOMEM;
-	}
-
+	assert(((uintptr_t)data_ptr % PAGE_SIZE) == 0);
+	memset(data_ptr, 0x42, data_size);
 	if (mlock(data_ptr, data_size) == -1) {
-		fprintf(stderr, "Error opening file %s: %s\n", dst_path, strerror(errno));
-		return errno;
+		fprintf(stderr, "Error opening file %s: %s\n", filename, strerror(errno));
+		ret = errno;
+		goto err_out;
 	}
 
-	for (int i=0; i<MAX_PAGES; i++) {
-		req_file.addresses[i] = (uintptr_t)data_ptr + i * PAGE_SIZE;
+	for (int i=0; i<NUM_PAGES; i++) {
+		req_file.addresses[i] = (uintptr_t)(data_ptr + i * PAGE_SIZE);
 	}
-	req_file.num_addresses = MAX_PAGES;
+	req_file.num_addresses = NUM_PAGES;
 
 	unsigned long read = 0;
 	unsigned long written = 0;
 
-	while (true) {
-		debug_printf("[hget]  Downloading %s => %s (bytes %lu/%lu)\n", req_file.file_name, dst_path, written, read);
+	do {
 		read = hypercall(HYPERCALL_KAFL_REQ_STREAM_DATA_BULK, (uintptr_t)&req_file);
 		if (read == 0xFFFFFFFFFFFFFFFFUL) {
-			fprintf(stderr, "Failed to get stream data, check Qemu logs.\n");
-			break;
+			fprintf(stderr, "Could not get %s from sharedir. Check Qemu logs.\n",
+					req_file.file_name);
+			ret = -EIO;
+			goto err_out;
 		}
-		if (read == written)
-			break;
-		written += write(fd, data_ptr, read-written);
-	}
+		written += write(fd, data_ptr, read);
+		debug_printf("[hget]  %s => %s (written %lu/%lu)\n",
+				req_file.file_name, filename, written, read);
+	} while (read > data_size);
 
+	fprintf(stderr, "[hget]  Successfully fetched %s (%lu bytes)\n", filename, written);
+
+err_out:
+	close(fd);
 	free(data_ptr);
-
-	return 0;
+	return ret;
 }
 
 static int cmd_hget(int argc, char **argv)
@@ -311,13 +308,21 @@ static int cmd_hget(int argc, char **argv)
 		return -EINVAL;
 	}
 
-	for (int i = optind; i < argc; i++) {
-		char *filepath  = strdup(argv[i]);
-		ret = hget_file(filepath, dst_root, fmode);
-		free(filepath);
+	if (dst_root) {
+		ret = chdir(dst_root);
+		free(dst_root);
+		if (ret != 0) {
+			fprintf(stderr, "Failed to access %s: %s", dst_root, strerror(errno));
+			return errno;
+		}
 	}
 
-	return 0;
+	for (int i = optind; i < argc && ret == 0; i++) {
+		ret = hget_file(argv[i], fmode);
+		if (ret != 0)
+			break;
+	}
+	return ret;
 }
 
 //static void kafl_dump_observed_payload(char *filename, int append, uint8_t *buf, uint32_t buflen)
