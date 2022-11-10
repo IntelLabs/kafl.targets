@@ -204,7 +204,7 @@ static int cmd_hcat(int argc, char **argv)
 
 static int cmd_habort(int argc, char **argv)
 {
-	if (argc > 0) {
+	if (argv[optind]) {
 		debug_printf("[habort] msg := '%s'\n", argv[optind]);
 		hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)argv[optind]);
 	} else {
@@ -217,50 +217,34 @@ static int cmd_habort(int argc, char **argv)
 
 static int hget_file(char* src_path, mode_t flags)
 {
-	static req_data_bulk_t req_file __attribute((aligned(4096)));
+	static req_data_bulk_t req_file __attribute((aligned(PAGE_SIZE)));
 
 	int ret = 0;
-	const int PAGE_SIZE = 4096;
-	const int NUM_PAGES = 256; // 1MB at a time
+	const int num_pages = 256; // 1MB at a time
 
-	if (strlen(src_path) >= sizeof(req_file.file_name)) {
+	size_t scratch_size = num_pages * PAGE_SIZE;
+	uint8_t *scratch_buf = malloc_resident_pages(num_pages);
+
+	for (int i=0; i<num_pages; i++) {
+		req_file.addresses[i] = (uintptr_t)(scratch_buf + i * PAGE_SIZE);
+	}
+	req_file.num_addresses = num_pages;
+
+	if (strlen(src_path) < sizeof(req_file.file_name)) {
+		strcpy(req_file.file_name, src_path);
+	} else {
 		return -ENAMETOOLONG;
 	}
 
-	strncpy(req_file.file_name, src_path, sizeof(req_file.file_name));
-	
-	char *filename = basename(src_path); // src_path mangled!
-	int fd = creat(filename, flags);
+	char *dst_path = basename(src_path); // src_path mangled!
+	int fd = creat(dst_path, flags);
 	if (fd == -1) {
-		fprintf(stderr, "Error opening file %s: %s\n", filename, strerror(errno));
+		fprintf(stderr, "Error opening file %s: %s\n", dst_path, strerror(errno));
 		return errno;
 	}
 
-	size_t data_size = NUM_PAGES*PAGE_SIZE;
-	uint8_t *data_ptr = NULL;
-
-	if ((data_ptr = aligned_alloc(PAGE_SIZE, data_size)) == NULL) {
-		fprintf(stderr, "Error file %s: %s\n", filename, strerror(errno));
-		ret = errno;
-		goto err_out;
-	}
-
-	assert(((uintptr_t)data_ptr % PAGE_SIZE) == 0);
-	memset(data_ptr, 0x42, data_size);
-	if (mlock(data_ptr, data_size) == -1) {
-		fprintf(stderr, "Error opening file %s: %s\n", filename, strerror(errno));
-		ret = errno;
-		goto err_out;
-	}
-
-	for (int i=0; i<NUM_PAGES; i++) {
-		req_file.addresses[i] = (uintptr_t)(data_ptr + i * PAGE_SIZE);
-	}
-	req_file.num_addresses = NUM_PAGES;
-
 	unsigned long read = 0;
 	unsigned long written = 0;
-
 	do {
 		read = hypercall(HYPERCALL_KAFL_REQ_STREAM_DATA_BULK, (uintptr_t)&req_file);
 		if (read == 0xFFFFFFFFFFFFFFFFUL) {
@@ -269,16 +253,24 @@ static int hget_file(char* src_path, mode_t flags)
 			ret = -EIO;
 			goto err_out;
 		}
-		written += write(fd, data_ptr, read);
-		debug_printf("[hget]  %s => %s (written %lu/%lu)\n",
-				req_file.file_name, filename, written, read);
-	} while (read > data_size);
 
-	fprintf(stderr, "[hget]  Successfully fetched %s (%lu bytes)\n", filename, written);
+		if (read != write(fd, scratch_buf, read)) {
+			fprintf(stderr, "Failed writing to %s: %s\n", dst_path, strerror(errno));
+			ret = -EIO;
+			goto err_out;
+		}
+
+		written += read;
+		debug_printf("[hget]  %s => %s (read: %lu / written: %lu)\n",
+				req_file.file_name, dst_path, read, written);
+
+	} while (read == scratch_size);
+
+	fprintf(stderr, "[hget]  Successfully fetched %s (%lu bytes)\n", dst_path, written);
 
 err_out:
 	close(fd);
-	free(data_ptr);
+	free(scratch_buf);
 	return ret;
 }
 
@@ -298,7 +290,7 @@ static int cmd_hget(int argc, char **argv)
 				dst_root = strdup(optarg);
 				break;
 			default:
-				fprintf(stderr, "Usage: hget [-x] [-o path/to/dest/] filename\n");
+				fprintf(stderr, "Usage: hget [-x] [-o path/to/dest/] file [file..]\n");
 				return -EINVAL;
 		}
 	}
