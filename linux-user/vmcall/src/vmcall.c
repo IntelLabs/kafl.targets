@@ -33,6 +33,8 @@
 #include <fcntl.h>
 #include <libgen.h>
 
+#include <sys/mman.h>
+
 #include <nyx_api.h>
 
 #include "util.h"
@@ -60,7 +62,6 @@ struct cmd_table {
 	int (*handler)(int, char**);
 };
 
-char hprintf_buffer[HPRINTF_MAX_SIZE] __attribute__((aligned(4096)));
 nyx_cpu_type_t nyx_cpu_type = nyx_cpu_none;
 
 static int cmd_vmcall(int argc, char **argv);
@@ -121,6 +122,8 @@ static size_t file_to_hprintf(FILE *f)
 	size_t written = 0;
 	size_t read = 0;
 
+	static char hprintf_buffer[HPRINTF_MAX_SIZE] __attribute__((aligned(PAGE_SIZE)));
+
 	while (!feof(f)) {
 		read = fread(hprintf_buffer, 1, sizeof(hprintf_buffer), f);
 		if (read < 0) {
@@ -173,7 +176,16 @@ static int cmd_habort(int argc, char **argv)
 		debug_printf("[habort] msg := '%s'\n", "vmcall/habort called.");
 		hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)"vmcall/habort called.");
 	}
+	return 0;
+}
 
+static int cmd_hpanic(int argc, char **argv)
+{
+	if (argv[optind]) {
+		hypercall(HYPERCALL_KAFL_PANIC_EXTENDED, (uintptr_t)argv[optind]);
+	} else {
+		hypercall(HYPERCALL_KAFL_PANIC, 0);
+	}
 	return 0;
 }
 
@@ -279,14 +291,96 @@ static int cmd_hget(int argc, char **argv)
 	return ret;
 }
 
-static int cmd_hpush(int argc, char **argv)
+static int hpush_file(char *src_path, char *dst_name, int append)
 {
-	kafl_dump_file_t put_req;
+	struct stat st;
+	uint8_t *scratch_buf = NULL;
+	size_t scratch_len = 0;
+	int fd = -1;
+	int ret = 0;
+	
+	kafl_dump_file_t put_req __attribute__((aligned(PAGE_SIZE)));
 
-	return 0;
+	fd = open(src_path, O_RDONLY);
+	if (fd < 0) {
+		fprintf(stderr, "Failed to open file %s: %s\n",
+				src_path, strerror(errno));
+		ret = errno;
+		goto err_out;
+	}
+
+	if (fstat(fd, &st) == -1) {
+		fprintf(stderr, "Failed to stat file %s: %s\n",
+				src_path, strerror(errno));
+		ret = errno;
+		goto err_out;
+
+	}
+
+	size_t file_size = st.st_size;
+	size_t num_pages = file_size / PAGE_SIZE + 1;
+	scratch_len = num_pages * PAGE_SIZE;
+	scratch_buf = malloc_resident_pages(scratch_len);
+	
+	if (!scratch_buf) {
+		fprintf(stderr, "Failed to allocate file buffer for %s: %s\n",
+				src_path, strerror(errno));
+		ret = errno;
+		goto err_out;
+	}
+
+	// copy file to resident memory
+	assert(file_size == read(fd, scratch_buf, file_size));
+
+	if (!dst_name) {
+		dst_name = basename(src_path);
+	}
+
+	put_req.file_name_str_ptr = (uintptr_t)dst_name;
+	put_req.bytes = file_size;
+	put_req.append = append;
+	put_req.data_ptr = (uintptr_t)scratch_buf;
+
+	debug_printf("[hpush] %s => %s (%lu bytes)\n",
+			     src_path, dst_name, scratch_len);
+	hypercall(HYPERCALL_KAFL_DUMP_FILE, (uintptr_t)&put_req);
+
+err_out:
+	free_resident_pages(scratch_buf, scratch_len/PAGE_SIZE);
+	close(fd);
+	return ret;
 }
 
-static int cmd_hpanic(int argc, char **argv) { return 0; }
+static int cmd_hpush(int argc, char **argv)
+{
+	int ret = 0;
+	bool append = 0;
+	char *dst_name = NULL;
+	int opt;
+	
+	while ((opt = getopt(argc, argv, "ao:")) != -1) {
+		switch (opt) {
+			case 'a':
+				append = 1;
+				break;
+			case 'o':
+				dst_name = strdup(optarg);
+				break;
+			default:
+				fprintf(stderr, "Usage: hpush [-o dest_pattern] file\n");
+				return -EINVAL;
+		}
+	}
+
+	if (optind +1 != argc) {
+		fprintf(stderr, "Need exactly one argument: file\n");
+		return -EINVAL;
+	}
+
+	ret = hpush_file(argv[optind], dst_name, append);
+	free(dst_name);
+	return ret;
+}
 
 static int cmd_hrange(int argc, char **argv) { return 0; }
 

@@ -52,6 +52,14 @@ err_out:
 	return NULL;
 }
 
+void free_resident_pages(void *buf, size_t num_pages)
+{
+	if (buf) {
+		munlock(buf, num_pages);
+		free(buf);
+	}
+}
+
 bool file_is_ready(int fd)
 {
 	struct timeval tv = {

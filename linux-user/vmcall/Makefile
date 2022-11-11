@@ -1,6 +1,6 @@
 NYX_INCLUDE_PATH ?= $(EXAMPLES_ROOT)
 
-CFLAGS += -g -Og -I$(NYX_INCLUDE_PATH)
+CFLAGS += -g -O0 -I$(NYX_INCLUDE_PATH)
 
 all: debug
 

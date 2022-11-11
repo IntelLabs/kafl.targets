@@ -17,3 +17,4 @@
 
 bool file_is_ready(int fd);
 void* malloc_resident_pages(size_t num_pages);
+void free_resident_pages(void *buf, size_t num_pages);
