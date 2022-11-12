@@ -382,7 +382,47 @@ static int cmd_hpush(int argc, char **argv)
 	return ret;
 }
 
-static int cmd_hrange(int argc, char **argv) { return 0; }
+static int cmd_hrange(int argc, char **argv)
+{
+	int ret = 0;
+
+	typedef struct {
+		uint64_t start;
+		uint64_t end;
+		uint64_t num;
+	} kafl_range_t;
+
+	kafl_range_t range __attribute__((aligned(PAGE_SIZE)));
+
+	for (int i = optind; i < argc; i++) {
+		if (3 != sscanf(argv[i], "%u,%x-%x",
+					    &range.num, &range.start, &range.end)) {
+			fprintf(stderr, "Usage: hrange id,start-end [id,start-end...]");
+			return -EINVAL;
+		}
+		if (range.num > 3) {
+			fprintf(stderr, "Error: Range id must be in [0-3].\n");
+			return -EINVAL;
+		}
+		if (range.start >= range.end) {
+			fprintf(stderr, "Error: Range start >= end.\n");
+			return -EINVAL;
+		}
+		if ((range.end & 0xfff) != 0) {
+			fprintf(stderr, "\tRange end rounded up to page boundary.\n");
+			range.end = (range.end / PAGE_SIZE + 1) * PAGE_SIZE;
+		}
+		if ((range.start & 0xfff) != 0) {
+			fprintf(stderr, "\tRange start rounded down to page boundary.\n");
+			range.start -= (range.start % PAGE_SIZE);
+		}
+
+		fprintf(stderr, "[hrange] Submit range %lu: %lx-%lx\n",
+				range.num, range.start, range.end);
+		hypercall(HYPERCALL_KAFL_RANGE_SUBMIT, (uintptr_t)&range);
+	}
+	return 0;
+}
 
 static int cmd_is_nyx(int argc, char **argv)
 {
