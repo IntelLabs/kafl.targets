@@ -64,8 +64,6 @@ struct cmd_table {
 
 nyx_cpu_type_t nyx_cpu_type = nyx_cpu_none;
 
-static int cmd_vmcall(int argc, char **argv);
-
 static void usage()
 {
 	char *msg =
@@ -424,9 +422,62 @@ static int cmd_hrange(int argc, char **argv)
 	return 0;
 }
 
-static int cmd_is_nyx(int argc, char **argv)
+static int check_host_config(int verbose)
 {
-		return nyx_cpu_type;
+	host_config_t host_config = { 0 };
+
+	hypercall(HYPERCALL_KAFL_GET_HOST_CONFIG, (uintptr_t)&host_config);
+
+	if (verbose) {
+		fprintf(stderr, "[hcheck] GET_HOST_CONFIG\n");
+		fprintf(stderr, "[hcheck]   host magic:  0x%x, version: 0x%x\n", host_config.host_magic);
+		fprintf(stderr, "[hcheck]   bitmap size: 0x%x, ijon:    0x%x\n", host_config.bitmap_size, host_config.ijon_bitmap_size);
+		fprintf(stderr, "[hcheck]   payload size: %u KB\n", host_config.payload_buffer_size/1024);
+		fprintf(stderr, "[hcheck]   worker id: %d\n", host_config.worker_id);
+	}
+
+	if (host_config.host_magic != NYX_HOST_MAGIC) {
+		fprintf(stderr, "HOST_MAGIC mismatch: %08x != %08x\n",
+				host_config.host_magic, NYX_HOST_MAGIC);
+		return -1;
+	}
+
+	if (host_config.host_version != NYX_HOST_VERSION) {
+		fprintf(stderr, "HOST_VERSION mismatch: %08x != %08x\n",
+				host_config.host_version, NYX_HOST_VERSION);
+		return -1;
+	}
+	return 0;
+}
+
+static int cmd_check(int argc, char **argv)
+{
+	int verbose = 1;
+
+	switch (nyx_cpu_type) {
+		case nyx_cpu_v1:
+			fprintf(stderr, "NYX vCPU (PT)\n");
+			break;
+		case nyx_cpu_v2:
+			fprintf(stderr, "NYX vCPU (NO-PT)\n");
+			break;
+		case nyx_cpu_none:
+			fprintf(stderr, "No Nyx support :-(\n");
+			break;
+	}
+
+	if (nyx_cpu_type != nyx_cpu_none) {
+		check_host_config(verbose);
+	}
+
+	return nyx_cpu_type;
+}
+
+static int cmd_lock()
+{
+	fprintf(stderr, "[hlock] Triggering pre-snapshot...\n");
+	hypercall(HYPERCALL_KAFL_LOCK, 0);
+	return 0;
 }
 
 /**
@@ -442,7 +493,8 @@ static int cmd_dispatch(int argc, char **argv)
 		{ "hpush",  cmd_hpush  },
 		{ "hpanic", cmd_hpanic },
 		{ "hrange", cmd_hrange },
-		{ "is_nyx", cmd_is_nyx },
+		{ "hcheck", cmd_check  },
+		{ "hlock",  cmd_lock   },
 	};
 
 	for (int i=0; i<ARRAY_SIZE(cmd_list); i++) {
