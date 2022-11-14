@@ -1,30 +1,30 @@
 #!/bin/sh
 
-cat /proc/cpuinfo |/vmcall hcat
-
-/vmcall is_nyx
-echo "CPU is Nyx: $?" |/vmcall hcat
+/vmcall check
+echo "Nyx CPU type: $?" | /vmcall hcat
 
 /vmcall hget -x -o /bin vmcall
 
-mkdir /fuzz
-vmcall hget -o /fuzz test.bin
-vmcall hget -x -o /fuzz foo
+vmcall hcat /proc/cpuinfo
 
-vmcall hcat /fuzz/test.bin
+mkdir /test
+vmcall hget -o /test test.bin
+vmcall hget -x -o /test foo
+vmcall hget -x -o /test enoexist # fail
 
-vmcall hpush /fuzz/foo
-vmcall hpush -a /fuzz/foo
-vmcall hpush -a /fuzz/foo
-vmcall hpush -o "test_XXXXXX" /fuzz/foo
+vmcall hcat /test/test.bin
 
-vmcall hrange 0,100-500
+vmcall hpush /test/foo
+vmcall hpush -a /test/foo
+vmcall hpush -a /test/foo
+vmcall hpush -o "test_XXXXXX" /test/foo
+
+vmcall hrange 0,1100-1500
 vmcall hrange 0,101100-202500 1,200000-23423432
 
-vmcall hcheck
 vmcall hlock
 
 ls -l | vmcall hcat
-ls -l /fuzz | vmcall hcat
+ls -l /test | vmcall hcat
 
-/vmcall habort "return from loader.sh"
+vmcall habort "return from loader.sh"

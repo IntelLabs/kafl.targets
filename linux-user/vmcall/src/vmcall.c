@@ -68,7 +68,7 @@ static void usage()
 {
 	char *msg =
 		"\nUsage: vmcall [cmd] [args...]\n\n"
-		"\twhere cmd := { vmcall, hcat, habort, hget, hpush, hpanic, hrange }\n";
+		"\twhere cmd := { check, hcat, hget, hpush, habort, hpanic, hrange, hlock }\n";
 
 	fputs(msg, stderr);
 }
@@ -89,7 +89,7 @@ static nyx_cpu_type_t get_nyx_cpu_type(void)
 	memcpy(str, regs, sizeof(regs));
 	str[16] = '\0';
 	
-	debug_printf("CPUID info: >>%s<<\n", str);
+	//debug_printf("CPUID string: >>%s<<\n", str);
 
 	if (0 == strncmp(str, "NYX vCPU (PT)", sizeof(str))) {
 		return nyx_cpu_v1;
@@ -154,25 +154,29 @@ static int cmd_hcat(int argc, char **argv)
 	for (int i = optind; i < argc; i++) {
 		f = fopen(argv[i], "r");
 		if (!f) {
-			fprintf(stderr, "Error opening file %s: %s\n", argv[optind], strerror(errno));
+			fprintf(stderr, "[hcat]  Error opening file %s: %s\n", argv[optind], strerror(errno));
 			return written;
 		} else {
 			written += file_to_hprintf(f);
 		}
 	}
 
-	debug_printf("[hcat] %zd bytes written.\n", written);
+	debug_printf("[hcat]  %zd bytes written.\n", written);
 	return (written > 0);
+}
+
+static void habort_msg(char *msg) {
+	hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)msg);
 }
 
 static int cmd_habort(int argc, char **argv)
 {
 	if (argv[optind]) {
 		debug_printf("[habort] msg := '%s'\n", argv[optind]);
-		hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)argv[optind]);
+		habort_msg(argv[optind]);
 	} else {
 		debug_printf("[habort] msg := '%s'\n", "vmcall/habort called.");
-		hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)"vmcall/habort called.");
+		habort_msg("vmcall/habort called.");
 	}
 	return 0;
 }
@@ -211,7 +215,7 @@ static int hget_file(char* src_path, mode_t flags)
 	char *dst_path = basename(src_path); // src_path mangled!
 	int fd = creat(dst_path, flags);
 	if (fd == -1) {
-		fprintf(stderr, "Error opening file %s: %s\n", dst_path, strerror(errno));
+		fprintf(stderr, "[[hget]  Error opening file %s: %s\n", dst_path, strerror(errno));
 		return errno;
 	}
 
@@ -220,14 +224,14 @@ static int hget_file(char* src_path, mode_t flags)
 	do {
 		read = hypercall(HYPERCALL_KAFL_REQ_STREAM_DATA_BULK, (uintptr_t)&req_file);
 		if (read == 0xFFFFFFFFFFFFFFFFUL) {
-			fprintf(stderr, "Could not get %s from sharedir. Check Qemu logs.\n",
+			fprintf(stderr, "[hget]  Could not get %s from sharedir. Check Qemu logs.\n",
 					req_file.file_name);
 			ret = -EIO;
 			goto err_out;
 		}
 
 		if (read != write(fd, scratch_buf, read)) {
-			fprintf(stderr, "Failed writing to %s: %s\n", dst_path, strerror(errno));
+			fprintf(stderr, "[hget]  Failed writing to %s: %s\n", dst_path, strerror(errno));
 			ret = -EIO;
 			goto err_out;
 		}
@@ -268,7 +272,7 @@ static int cmd_hget(int argc, char **argv)
 	}
 
 	if (optind >= argc) {
-		fprintf(stderr, "Missing argument: filename\n");
+		fprintf(stderr, "[hget]  Missing argument: filename\n");
 		return -EINVAL;
 	}
 
@@ -276,7 +280,7 @@ static int cmd_hget(int argc, char **argv)
 		ret = chdir(dst_root);
 		free(dst_root);
 		if (ret != 0) {
-			fprintf(stderr, "Failed to access %s: %s", dst_root, strerror(errno));
+			fprintf(stderr, "[hget]  Failed to access %s: %s", dst_root, strerror(errno));
 			return errno;
 		}
 	}
@@ -301,14 +305,14 @@ static int hpush_file(char *src_path, char *dst_name, int append)
 
 	fd = open(src_path, O_RDONLY);
 	if (fd < 0) {
-		fprintf(stderr, "Failed to open file %s: %s\n",
+		fprintf(stderr, "[hpush] Failed to open file %s: %s\n",
 				src_path, strerror(errno));
 		ret = errno;
 		goto err_out;
 	}
 
 	if (fstat(fd, &st) == -1) {
-		fprintf(stderr, "Failed to stat file %s: %s\n",
+		fprintf(stderr, "[hpush] Failed to stat file %s: %s\n",
 				src_path, strerror(errno));
 		ret = errno;
 		goto err_out;
@@ -321,7 +325,7 @@ static int hpush_file(char *src_path, char *dst_name, int append)
 	scratch_buf = malloc_resident_pages(scratch_len);
 	
 	if (!scratch_buf) {
-		fprintf(stderr, "Failed to allocate file buffer for %s: %s\n",
+		fprintf(stderr, "[hpush] Failed to allocate file buffer for %s: %s\n",
 				src_path, strerror(errno));
 		ret = errno;
 		goto err_out;
@@ -371,7 +375,7 @@ static int cmd_hpush(int argc, char **argv)
 	}
 
 	if (optind +1 != argc) {
-		fprintf(stderr, "Need exactly one argument: file\n");
+		fprintf(stderr, "[hpush] Need exactly one argument: file\n");
 		return -EINVAL;
 	}
 
@@ -399,20 +403,24 @@ static int cmd_hrange(int argc, char **argv)
 			return -EINVAL;
 		}
 		if (range.num > 3) {
-			fprintf(stderr, "Error: Range id must be in [0-3].\n");
+			fprintf(stderr, "[hrange] Error: Range id must be in [0-3].\n");
 			return -EINVAL;
 		}
 		if (range.start >= range.end) {
-			fprintf(stderr, "Error: Range start >= end.\n");
+			fprintf(stderr, "[hrange] Error: Range start >= end.\n");
 			return -EINVAL;
 		}
 		if ((range.end & 0xfff) != 0) {
-			fprintf(stderr, "\tRange end rounded up to page boundary.\n");
-			range.end = (range.end / PAGE_SIZE + 1) * PAGE_SIZE;
+			uint64_t rounded = (range.end / PAGE_SIZE + 1) * PAGE_SIZE;
+			fprintf(stderr, "[hrange] Rounding up to page boundary: 0x%08x => 0x%08x\n",
+					range.end, rounded);
+			range.end = rounded;
 		}
 		if ((range.start & 0xfff) != 0) {
-			fprintf(stderr, "\tRange start rounded down to page boundary.\n");
-			range.start -= (range.start % PAGE_SIZE);
+			uint64_t rounded = range.start - (range.start % PAGE_SIZE);
+			fprintf(stderr, "[hrange] Rounding down to page boundary: 0x%08x => 0x%08x\n",
+					range.start, rounded);
+			range.start = rounded;
 		}
 
 		fprintf(stderr, "[hrange] Submit range %lu: %lx-%lx\n",
@@ -429,21 +437,21 @@ static int check_host_config(int verbose)
 	hypercall(HYPERCALL_KAFL_GET_HOST_CONFIG, (uintptr_t)&host_config);
 
 	if (verbose) {
-		fprintf(stderr, "[hcheck] GET_HOST_CONFIG\n");
-		fprintf(stderr, "[hcheck]   host magic:  0x%x, version: 0x%x\n", host_config.host_magic);
-		fprintf(stderr, "[hcheck]   bitmap size: 0x%x, ijon:    0x%x\n", host_config.bitmap_size, host_config.ijon_bitmap_size);
-		fprintf(stderr, "[hcheck]   payload size: %u KB\n", host_config.payload_buffer_size/1024);
-		fprintf(stderr, "[hcheck]   worker id: %d\n", host_config.worker_id);
+		fprintf(stderr, "[check] GET_HOST_CONFIG\n");
+		fprintf(stderr, "[check]   host magic:  0x%x, version: 0x%x\n", host_config.host_magic);
+		fprintf(stderr, "[check]   bitmap size: 0x%x, ijon:    0x%x\n", host_config.bitmap_size, host_config.ijon_bitmap_size);
+		fprintf(stderr, "[check]   payload size: %u KB\n", host_config.payload_buffer_size/1024);
+		fprintf(stderr, "[check]   worker id: %d\n", host_config.worker_id);
 	}
 
 	if (host_config.host_magic != NYX_HOST_MAGIC) {
-		fprintf(stderr, "HOST_MAGIC mismatch: %08x != %08x\n",
+		fprintf(stderr, "[check] HOST_MAGIC mismatch: %08x != %08x\n",
 				host_config.host_magic, NYX_HOST_MAGIC);
 		return -1;
 	}
 
 	if (host_config.host_version != NYX_HOST_VERSION) {
-		fprintf(stderr, "HOST_VERSION mismatch: %08x != %08x\n",
+		fprintf(stderr, "[check] HOST_VERSION mismatch: %08x != %08x\n",
 				host_config.host_version, NYX_HOST_VERSION);
 		return -1;
 	}
@@ -456,24 +464,27 @@ static int cmd_check(int argc, char **argv)
 
 	switch (nyx_cpu_type) {
 		case nyx_cpu_v1:
-			fprintf(stderr, "NYX vCPU (PT)\n");
+			fprintf(stderr, "[check] Detected NYX vCPU (PT)\n");
 			break;
 		case nyx_cpu_v2:
-			fprintf(stderr, "NYX vCPU (NO-PT)\n");
+			fprintf(stderr, "[check] Detected NYX vCPU (NO-PT)\n");
 			break;
 		case nyx_cpu_none:
-			fprintf(stderr, "No Nyx support :-(\n");
+			fprintf(stderr, "[check] Detected No Nyx support :-(\n");
 			break;
 	}
 
 	if (nyx_cpu_type != nyx_cpu_none) {
-		check_host_config(verbose);
+		if (0 != check_host_config(verbose)) {
+			habort_msg("[check] Incompatible host magic or version.");
+			return -nyx_cpu_type; /* won't reach */
+		}
 	}
 
 	return nyx_cpu_type;
 }
 
-static int cmd_lock()
+static int cmd_hlock()
 {
 	fprintf(stderr, "[hlock] Triggering pre-snapshot...\n");
 	hypercall(HYPERCALL_KAFL_LOCK, 0);
@@ -483,6 +494,7 @@ static int cmd_lock()
 /**
  * Call subcommand based on argv[0]
  */
+static int cmd_vmcall(int argc, char **argv);
 static int cmd_dispatch(int argc, char **argv)
 {
 	const static struct cmd_table cmd_list[] = {
@@ -493,8 +505,8 @@ static int cmd_dispatch(int argc, char **argv)
 		{ "hpush",  cmd_hpush  },
 		{ "hpanic", cmd_hpanic },
 		{ "hrange", cmd_hrange },
-		{ "hcheck", cmd_check  },
-		{ "hlock",  cmd_lock   },
+		{ "hlock",  cmd_hlock  },
+		{ "check",  cmd_check  },
 	};
 
 	for (int i=0; i<ARRAY_SIZE(cmd_list); i++) {

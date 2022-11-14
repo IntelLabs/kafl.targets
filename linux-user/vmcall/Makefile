@@ -19,7 +19,7 @@ vmcall.cpio.gz: vmcall loader.sh
 	../scripts/gen_initrd.sh vmcall.cpio.gz vmcall loader.sh
 
 test: vmcall.cpio.gz
-	# default kAFL config enables Linux serial console, see $WORKDIR/serial_00.log
+	# default kAFL config enables Linux serial console, see $$WORKDIR/serial_00.log
 	kafl_fuzz.py \
 		--kernel /boot/vmlinuz-$$(uname -r) \
 		--initrd $^ \
