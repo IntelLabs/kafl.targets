@@ -1,23 +1,9 @@
 /*
-
-Copyright (C) 2017 Sergej Schumilo
-
-This file is part of kAFL Fuzzer (kAFL).
-
-QEMU-PT is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-QEMU-PT is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with QEMU-PT.  If not, see <http://www.gnu.org/licenses/>.
-
-*/
+ * Copyright (C) 2017 Sergej Schumilo
+ *
+ * SPDX-License-Identifier: GPL-2.0
+ *
+ */
 
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -40,6 +26,8 @@ along with QEMU-PT.  If not, see <http://www.gnu.org/licenses/>.
 
 #define KAFL_TMP_FILE "/tmp/trash"
 #define PAYLOAD_MAX_SIZE (2 ^ 16)
+
+#define EXT4
 
 static inline void kill_systemd(void)
 {
@@ -84,6 +72,52 @@ static inline uint64_t get_address(char *identifier)
 	return address;
 }
 
+int agent_init(int verbose)
+{
+	host_config_t host_config;
+
+	kAFL_hypercall(HYPERCALL_KAFL_GET_HOST_CONFIG, (uintptr_t)&host_config);
+
+	if (verbose) {
+		fprintf(stderr, "GET_HOST_CONFIG\n");
+		fprintf(stderr, "\thost magic:  0x%x, version: 0x%x\n", host_config.host_magic);
+		fprintf(stderr, "\tbitmap size: 0x%x, ijon:    0x%x\n", host_config.bitmap_size, host_config.ijon_bitmap_size);
+		fprintf(stderr, "\tpayload size: %u KB\n", host_config.payload_buffer_size/1024);
+		fprintf(stderr, "\tworker id: %d\n", host_config.worker_id);
+	}
+
+	if (host_config.host_magic != NYX_HOST_MAGIC) {
+		hprintf("HOST_MAGIC mismatch: %08x != %08x\n",
+				host_config.host_magic, NYX_HOST_MAGIC);
+		habort("HOST_MAGIC mismatch!");
+		return -1;
+	}
+
+	if (host_config.host_version != NYX_HOST_VERSION) {
+		hprintf("HOST_VERSION mismatch: %08x != %08x\n",
+				host_config.host_version, NYX_HOST_VERSION);
+		habort("HOST_VERSION mismatch!");
+		return -1;
+	}
+
+	agent_config_t agent_config = { 0 };
+	agent_config.agent_magic = NYX_AGENT_MAGIC;
+	agent_config.agent_version = NYX_AGENT_VERSION;
+	//agent_config.agent_timeout_detection = 0; // timeout by host
+	//agent_config.agent_tracing = 0; // trace by host
+	//agent_config.agent_ijon_tracing = 0; // no IJON
+	agent_config.agent_non_reload_mode = 1; // allow persistent mode
+	//agent_config.trace_buffer_vaddr = 0xdeadbeef;
+	//agent_config.ijon_trace_buffer_vaddr = 0xdeadbeef;
+	agent_config.coverage_bitmap_size = host_config.bitmap_size;;
+	//agent_config.input_buffer_size;
+	//agent_config.dump_payloads; // set by hypervisor (??)
+
+	kAFL_hypercall(HYPERCALL_KAFL_SET_AGENT_CONFIG, (uintptr_t)&agent_config);
+
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	struct stat st = { 0 };
@@ -93,8 +127,7 @@ int main(int argc, char **argv)
 	long devnr;
 
 	kAFL_payload *payload_buffer = mmap((void *)NULL, PAYLOAD_MAX_SIZE,
-					    PROT_READ | PROT_WRITE,
-					    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+					    PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	memset(payload_buffer, 0xff, PAYLOAD_MAX_SIZE);
 
 	kill_systemd();
@@ -104,6 +137,8 @@ int main(int argc, char **argv)
 	devnr = ioctl(loopctlfd, LOOP_CTL_GET_FREE);
 	sprintf(loopname, "/dev/loop%ld", devnr);
 	close(loopctlfd);
+
+	agent_init(1);
 
 	kAFL_hypercall(HYPERCALL_KAFL_SUBMIT_CR3, 0);
 	kAFL_hypercall(HYPERCALL_KAFL_GET_PAYLOAD, (uint64_t)payload_buffer);
