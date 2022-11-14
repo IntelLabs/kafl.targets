@@ -64,17 +64,17 @@ function create_rootfs()
 # inject any additional files, including their dependencies
 function inject_files()
 {
-	echo "[*] Injecting additional files..."
-
-	# copy template files
+	echo "[*] Copying template files..."
 	cp -vr $TEMPLATE/* "$TARGET_ROOT"/
 
-	for file in $@; do
-		test -r $file || fatal "Argument <$file> is not a readable file."
-		for dep in $($LDDTREE -l $file|sed s/.*' => '//); do
-			echo "Install $dep to $TARGET_ROOT/$dep"
-			install -D "$dep" $TARGET_ROOT/"$dep"
-		done
+	echo "[*] Copying given file args to /fuzz..."
+	echo "Install { $@ } => $TARGET_ROOT/fuzz/"
+	install -D -t $TARGET_ROOT/fuzz/ $@
+
+	echo "[*] Copying any detected dependencies..."
+	for dep in $($LDDTREE $@|grep -v "interpreter => none"|sed -e s/.*' => '// -e 's/)$//'|sort -u); do
+		echo "Install $dep => $TARGET_ROOT/$dep"
+		install -D "$dep" $TARGET_ROOT/"$dep"
 	done
 }
 

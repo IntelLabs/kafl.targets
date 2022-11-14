@@ -18,14 +18,14 @@
 
 export PATH=$PATH:/fuzz
 
-echo Get init.sh | hcat
-hget init.sh /fuzz/init.sh 2>&1 | hcat
-chmod a+x /fuzz/init.sh 2>&1 | hcat
+vmcall check
+echo "Nyx CPU type: $?" | vmcall hcat
 
-echo Launch /fuzz/init.sh | hcat
-/fuzz/init.sh 2>&1 | tee /fuzz/init.log |hcat
+vmcall hget -x -o /fuzz vmcall
+vmcall hget -x -o /fuzz agent.sh
 
-echo "Error: init.sh has returned - captured log:"|hcat
-hcat < /fuzz/init.log
+/fuzz/agent.sh 2>&1|tee /fuzz/agent.log
 
-habort
+echo "Return from agent.sh. Output log:" |vmcall hcat
+vmcall hcat /fuzz/agent.log
+vmcall habort "return from loader.sh"
