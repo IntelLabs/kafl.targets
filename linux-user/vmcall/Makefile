@@ -15,8 +15,8 @@ release: static
 vmcall: src/vmcall.c src/util.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
-vmcall.cpio.gz: vmcall loader.sh
-	../scripts/gen_initrd.sh vmcall.cpio.gz vmcall loader.sh
+vmcall.cpio.gz: vmcall
+	../scripts/gen_initrd.sh $@ $^
 
 test: vmcall.cpio.gz
 	# default kAFL config enables Linux serial console, see $$WORKDIR/serial_00.log
@@ -24,7 +24,7 @@ test: vmcall.cpio.gz
 		--kernel /boot/vmlinuz-$$(uname -r) \
 		--initrd $^ \
 		--work-dir $$KAFL_WORKDIR \
-		--sharedir $$(pwd) \
+		--sharedir testshare \
 		--purge -v --log
 
 clean:

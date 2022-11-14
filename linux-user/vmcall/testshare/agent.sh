@@ -1,10 +1,5 @@
 #!/bin/sh
 
-/vmcall check
-echo "Nyx CPU type: $?" | /vmcall hcat
-
-/vmcall hget -x -o /bin vmcall
-
 vmcall hcat /proc/cpuinfo
 
 mkdir /test
@@ -27,4 +22,4 @@ vmcall hlock
 ls -l | vmcall hcat
 ls -l /test | vmcall hcat
 
-vmcall habort "return from loader.sh"
+vmcall habort "return from agent.sh"
