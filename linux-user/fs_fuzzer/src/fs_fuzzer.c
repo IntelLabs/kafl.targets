@@ -32,12 +32,14 @@ along with QEMU-PT.  If not, see <http://www.gnu.org/licenses/>.
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "kafl_user.h"
-
-#define KAFL_TMP_FILE	"/tmp/trash"
 
 #include <linux/version.h>
 #include <linux/loop.h>
+
+#include "nyx_api.h"
+
+#define KAFL_TMP_FILE	"/tmp/trash"
+#define PAYLOAD_MAX_SIZE (2^16)
 
 static inline void kill_systemd(void){
 	system("systemctl disable systemd-udevd");
@@ -87,8 +89,8 @@ int main(int argc, char** argv)
 	int loopctlfd, loopfd, backingfile;
     	long devnr;
 
-	kAFL_payload* payload_buffer = mmap((void*)NULL, PAYLOAD_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	memset(payload_buffer, 0xff, PAYLOAD_SIZE);
+	kAFL_payload* payload_buffer = mmap((void*)NULL, PAYLOAD_MAX_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	memset(payload_buffer, 0xff, PAYLOAD_MAX_SIZE);
 
 	kill_systemd();
 
