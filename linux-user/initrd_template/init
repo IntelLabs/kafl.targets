@@ -4,8 +4,11 @@
 mount -t proc none /proc
 mount -t sysfs none /sys
 
+# populate /dev
+mdev -s
+
 # autostart hooks
 test -x /etc/rcS && /etc/rcS
 
-# fallback to shell
+echo "/etc/rcS returned. Fallback to shell."
 test -x /bin/ash && /bin/ash || /bin/sh
