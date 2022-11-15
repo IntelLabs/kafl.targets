@@ -29,7 +29,7 @@
 
 #define PAGE_SIZE 4096
 #define KAFL_TMP_FILE "/tmp/trash"
-#define PAYLOAD_MAX_SIZE (10 * 128 * 1024)
+#define PAYLOAD_MAX_SIZE (1 * 1024 * 1024)
 
 #define CHECK_ERRNO(x, msg)                                                \
 	do {                                                               \
@@ -56,6 +56,10 @@ static inline void kill_systemd(void)
 int agent_init(int verbose)
 {
 	host_config_t host_config;
+	
+	// set ready state
+	kAFL_hypercall(HYPERCALL_KAFL_ACQUIRE, 0);
+	kAFL_hypercall(HYPERCALL_KAFL_RELEASE, 0);
 
 	kAFL_hypercall(HYPERCALL_KAFL_GET_HOST_CONFIG, (uintptr_t)&host_config);
 
@@ -106,10 +110,6 @@ int agent_init(int verbose)
 
 	kAFL_hypercall(HYPERCALL_KAFL_SET_AGENT_CONFIG,
 		       (uintptr_t)&agent_config);
-
-	// set ready state
-	kAFL_hypercall(HYPERCALL_KAFL_ACQUIRE, 0);
-	kAFL_hypercall(HYPERCALL_KAFL_RELEASE, 0);
 
 	return 0;
 }
@@ -183,6 +183,7 @@ int main(int argc, char **argv)
 
 			if (ret != 0) {
 				//hprintf("mount() => %d: %s\n", ret, strerror(errno));
+				system("dmesg -c |vmcall hcat");
 			} else {
 				struct stat st = { 0 };
 				hprintf("mount() => success!\n");

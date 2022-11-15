@@ -1,4 +1,5 @@
 NYX_INCLUDE_PATH ?= $(EXAMPLES_ROOT)
+KERNEL_IMAGE ?= /boot/vmlinuz-$$(uname -r)
 
 CFLAGS += -g -O0 -I$(NYX_INCLUDE_PATH)
 
@@ -23,15 +24,16 @@ fs_fuzzer.cpio.gz: fs_fuzzer ../vmcall/vmcall
 
 test: fs_fuzzer.cpio.gz fs_fuzzer
 	# default kAFL config enables Linux serial console, see $$WORKDIR/serial_00.log
+	#-ip0 81000000-81e01000 -ip1 828b5000-8290f000
 	kafl_fuzz.py \
-		--kernel /boot/vmlinuz-$$(uname -r) \
+		--kernel $(KERNEL_IMAGE) \
 		--initrd $< \
-		--memory 512 \
+		--memory 512 --funky \
 		--work-dir $$KAFL_WORKDIR \
-		--sharedir $$(pwd) \
+		--sharedir $$PWD/sharedir/ \
 		--seed-dir seeds/ \
-		-t 4 -ts 2 -tc \
-		--purge --log --payload-size 1310720
+		-t 4 -ts 2 -tc -p 4 \
+		--purge --log --log-hprintf --payload-size 1048576
 
 clean:
 	rm -f fs_fuzzer fs_fuzzer.cpio.gz
