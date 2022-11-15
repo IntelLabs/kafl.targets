@@ -18,8 +18,8 @@
 
 export PATH=$PATH:/fuzz
 
-vmcall check
-echo "Nyx CPU type: $?" | vmcall hcat
+#vmcall check
+#echo "Nyx CPU type: $?" | vmcall hcat
 
 vmcall hget -x -o /fuzz agent.sh
 /fuzz/agent.sh 2>&1|tee /fuzz/agent.log
