@@ -1,6 +1,4 @@
 /*
- * This file is part of Redqueen.
- *
  * Copyright 2019 Sergej Schumilo, Cornelius Aschermann
  *
  * SPDX-License-Identifier: MIT
@@ -24,11 +22,15 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
-#include "../../kafl_user.h"
+#include "nyx_api.h"
 
 #define ASAN_EXIT_CODE 101
 //#define REDIRECT_STDERR_TO_HPRINTF
 //#define REDIRECT_STDOUT_TO_HPRINTF
+
+#if defined(REDIRECT_STDERR_TO_HPRINTF) || defined(REDIRECT_STDOUT_TO_HPRINTF)
+	char hprintf_buffer[HPRINTF_MAX_SIZE];
+#endif
 
 extern uint8_t stdin_mode;
 extern char *output_filename;
@@ -63,10 +65,6 @@ int __libc_start_main(int (*main) (int,char **,char **),
                     void (*fini)(void),
                     void (*rtld_fini)(void),
                     void (*stack_end)) = NULL;
-
-#if defined(REDIRECT_STDERR_TO_HPRINTF) || defined(REDIRECT_STDOUT_TO_HPRINTF)
-	char buf[HPRINTF_MAX_SIZE];
-#endif
 
 	struct rlimit r;
 	int fd, fd2 = 0;
@@ -106,16 +104,6 @@ int __libc_start_main(int (*main) (int,char **,char **),
 	_mlock((void *)payload_buffer, (size_t)PAYLOAD_SIZE);
 	kAFL_hypercall(HYPERCALL_KAFL_GET_PAYLOAD, (uintptr_t)payload_buffer);
 
-	kAFL_ranges *range_buffer =
-		mmap((void *)NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-	memset(range_buffer, 0xff, 0x1000);
-	kAFL_hypercall(HYPERCALL_KAFL_USER_RANGE_ADVISE, (uintptr_t)range_buffer);
-
-	for (i = 0; i < 4; i++) {
-		hprintf("Range %d Enabled: %x\t(%" PRIx64 "-%" PRIx64 ")\n", i, (uint8_t)range_buffer->enabled[i],
-			range_buffer->ip[i], range_buffer->size[i]);
-	}
-
 #if defined(__i386__)
 	kAFL_hypercall(HYPERCALL_KAFL_USER_SUBMIT_MODE, KAFL_MODE_32);
 #elif defined(__x86_64__)
@@ -126,23 +114,6 @@ int __libc_start_main(int (*main) (int,char **,char **),
 		pid = fork();
 
 		if (!pid) {
-			for (i = 0; i < 4; i++) {
-				if (range_buffer->enabled[i]) {
-					if (_mlock((void *)(intptr_t)(range_buffer->ip[i]),
-						   (size_t)(range_buffer->size[i]))) {
-						hprintf("_mlock(%l" PRIx64 ", %l" PRIx64 ") failed!\n",
-							(void *)(intptr_t)(range_buffer->ip[i]),
-							(size_t)(range_buffer->size[i]));
-						kAFL_hypercall(HYPERCALL_KAFL_USER_ABORT, 0);
-					}
-				}
-			}
-			if (_mlock((void *)payload_buffer, (size_t)PAYLOAD_SIZE)) {
-				hprintf("_mlock(%l" PRIx64 ", %l" PRIx64 ") failed!\n", (void *)payload_buffer,
-					(size_t)PAYLOAD_SIZE);
-				kAFL_hypercall(HYPERCALL_KAFL_USER_ABORT, 0);
-			}
-
 			if (stdin_mode) {
 				pipe(pipefd);
 			} else {
@@ -201,15 +172,15 @@ int __libc_start_main(int (*main) (int,char **,char **),
 
 #ifdef REDIRECT_STDERR_TO_HPRINTF
 			hprintf("------------STDERR-----------\n");
-			while (read(pipe_stderr_hprintf[0], buf, HPRINTF_MAX_SIZE)) {
-				hprintf(" => %s\n", buf);
+			while (read(pipe_stderr_hprintf[0], hprinf_buffer, HPRINTF_MAX_SIZE)) {
+				hprintf(" => %s\n", hprintf_buffer);
 			}
 			hprintf("-----------------------------n");
 #endif
 #ifdef REDIRECT_STDOUT_TO_HPRINTF
 			hprintf("------------STDDOUT-----------\n");
-			while (read(pipe_stdout_hprintf[0], buf, HPRINTF_MAX_SIZE)) {
-				hprintf(" => %s\n", buf);
+			while (read(pipe_stdout_hprintf[0], hprintf_buffer, HPRINTF_MAX_SIZE)) {
+				hprintf(" => %s\n", hprintf_buffer);
 			}
 			hprintf("-----------------------------n");
 #endif
