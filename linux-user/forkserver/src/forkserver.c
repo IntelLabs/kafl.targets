@@ -109,20 +109,11 @@ int agent_init(int verbose)
 	return 0;
 }
 
-int __libc_start_main(int (*main) (int,char **,char **),
-              int argc,char **ubp_av,
-              void (*init) (void),
-              void (*fini)(void),
-              void (*rtld_fini)(void),
-              void (*stack_end)) {
+/* Trampoline for the real main() */
+int (*main_orig)(int, char **, char **);
 
-    int (*original__libc_start_main)(int (*main) (int,char **,char **),
-                    int argc,char **ubp_av,
-                    void (*init) (void),
-                    void (*fini)(void),
-                    void (*rtld_fini)(void),
-                    void (*stack_end)) = NULL;
-
+int forkserver(int argc, char **argv, char **envp)
+{
 	struct rlimit r;
 	int fd = 0;
 	int pipefd[2];
@@ -142,10 +133,15 @@ int __libc_start_main(int (*main) (int,char **,char **),
 	int pid;
 	int status = 0;
 
+	//char cmd[4096];
+	//pid = getpid();
+	//snprintf(cmd, sizeof(cmd)-1, "cat /proc/%d/maps", pid);
+	//system(cmd);
+	//system("vmcall hcat /tmp/map.txt");
+	
 	//r.rlim_max = (rlim_t)(memlimit << 20);
 	//r.rlim_cur = (rlim_t)(memlimit << 20);
 
-	original__libc_start_main = dlsym(RTLD_NEXT, "__libc_start_main");
 
 	dup2(open("/dev/null", O_WRONLY), STDOUT_FILENO);
 	dup2(open("/dev/null", O_WRONLY), STDERR_FILENO);
@@ -154,13 +150,9 @@ int __libc_start_main(int (*main) (int,char **,char **),
 		dup2(open("/dev/null", O_RDONLY), STDIN_FILENO);
 	}
 
-	//char cmd[4096];
-	pid = getpid();
-	//snprintf(cmd, sizeof(cmd)-1, "cat /proc/%d/maps > /tmp/map.txt", pid);
-	//system(cmd);
-	//system("vmcall hcat /tmp/map.txt");
-
 	agent_init(1);
+
+	hprintf("main() => 0x%lx\n", main_orig);
 
 	//kAFL_payload *payload_buffer = malloc_resident_pages(PAYLOAD_MAX_SIZE/PAGE_SIZE);
 	static uint8_t buf[PAYLOAD_MAX_SIZE] __attribute__((aligned(PAGE_SIZE)));
@@ -231,7 +223,7 @@ int __libc_start_main(int (*main) (int,char **,char **),
 			timer.it_interval.tv_usec = 0;
 			setitimer(ITIMER_VIRTUAL, &timer, NULL);
 
-			return original__libc_start_main(main, argc, ubp_av, init, fini, rtld_fini, stack_end);
+			return main_orig(argc, argv, envp);
 
 		} else if (pid > 0) {
 			int ret = 0;
@@ -273,4 +265,22 @@ int __libc_start_main(int (*main) (int,char **,char **),
 			hprintf("FORK FAILED ?!\n");
 		}
 	}
+}
+
+int __libc_start_main(int (*main)(int, char **, char **),
+                      int argc,
+                      char **argv,
+                      void (*init)(void),
+                      void (*fini)(void),
+                      void (*rtld_fini)(void),
+                      void(*stack_end))
+{
+	/* Save the real main function address */
+	main_orig = main;
+
+	/* Find the real __libc_start_main()... */
+	typeof(&__libc_start_main) orig = dlsym(RTLD_NEXT, "__libc_start_main");
+
+	/* ... and call it with our custom main function */
+	return orig(forkserver, argc, argv, init, fini, rtld_fini, stack_end);
 }
