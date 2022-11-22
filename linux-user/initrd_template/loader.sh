@@ -24,6 +24,6 @@ echo "Nyx CPU type: $?" | vmcall hcat
 vmcall hget -x -o /fuzz agent.sh
 /fuzz/agent.sh 2>&1|tee /fuzz/agent.log
 
-echo "Return from agent.sh. Output log:" |vmcall hcat
-vmcall hcat /fuzz/agent.log
-vmcall habort "return from loader.sh"
+echo "Return from agent.sh. Uploading agent.log" |vmcall hcat
+vmcall hpush /fuzz/agent.log
+vmcall habort "Return from agent.sh"
