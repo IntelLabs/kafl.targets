@@ -24,7 +24,7 @@ test: vmcall.cpio.gz
 		--kernel /boot/vmlinuz-$$(uname -r) \
 		--initrd $^ \
 		--work-dir $$KAFL_WORKDIR \
-		--sharedir testshare \
+		--sharedir $$PWD/testshare \
 		--purge -v --log
 
 clean:
