@@ -293,14 +293,17 @@ static int cmd_hget(int argc, char **argv)
 	return ret;
 }
 
-static int hpush_file(char *src_path, char *dst_name, int append)
+int hpush_file(char *src_path, char *dst_name, int append)
 {
-	struct stat st;
-	uint8_t *scratch_buf = NULL;
-	size_t scratch_len = 0;
 	int fd = -1;
 	int ret = 0;
-	
+	ssize_t total_sent = 0;
+	ssize_t bytes = 0;
+
+	uint8_t *scratch_buf = NULL;
+	size_t scratch_size = 1024*1024;
+	unsigned scratch_pages = scratch_size / PAGE_SIZE;
+
 	kafl_dump_file_t put_req __attribute__((aligned(PAGE_SIZE)));
 
 	fd = open(src_path, O_RDONLY);
@@ -311,18 +314,7 @@ static int hpush_file(char *src_path, char *dst_name, int append)
 		goto err_out;
 	}
 
-	if (fstat(fd, &st) == -1) {
-		fprintf(stderr, "[hpush] Failed to stat file %s: %s\n",
-				src_path, strerror(errno));
-		ret = errno;
-		goto err_out;
-
-	}
-
-	size_t file_size = st.st_size;
-	size_t num_pages = file_size / PAGE_SIZE + 1;
-	scratch_len = num_pages * PAGE_SIZE;
-	scratch_buf = malloc_resident_pages(scratch_len);
+	scratch_buf = malloc_resident_pages(scratch_pages);
 	
 	if (!scratch_buf) {
 		fprintf(stderr, "[hpush] Failed to allocate file buffer for %s: %s\n",
@@ -330,25 +322,33 @@ static int hpush_file(char *src_path, char *dst_name, int append)
 		ret = errno;
 		goto err_out;
 	}
-
-	// copy file to resident memory
-	assert(file_size == read(fd, scratch_buf, file_size));
-
-	if (!dst_name) {
-		dst_name = basename(src_path);
-	}
-
+	
 	put_req.file_name_str_ptr = (uintptr_t)dst_name;
-	put_req.bytes = file_size;
 	put_req.append = append;
 	put_req.data_ptr = (uintptr_t)scratch_buf;
 
-	debug_printf("[hpush] %s => %s (%lu bytes)\n",
-			     src_path, dst_name, scratch_len);
-	hypercall(HYPERCALL_KAFL_DUMP_FILE, (uintptr_t)&put_req);
+	do {
+		bytes = read(fd, scratch_buf, scratch_size);
+		hprintf("[hpush] %s => %s (%lu bytes)\n", src_path, dst_name, bytes);
+
+		if (bytes == -1) {
+			habort("hpush read error");
+		} else if (bytes == 0) {
+			break;
+		} else if (bytes > 0) {
+			put_req.bytes = bytes;
+			kAFL_hypercall(HYPERCALL_KAFL_DUMP_FILE, (uintptr_t)&put_req);
+			total_sent += bytes;
+			// append any subsequent chunks
+			put_req.append = 1;
+		}
+	} while (bytes > 0);
+			
+	hprintf("[hpush] %s => %s (%lu bytes)\n",
+			src_path, dst_name, total_sent);
 
 err_out:
-	free_resident_pages(scratch_buf, scratch_len/PAGE_SIZE);
+	free_resident_pages(scratch_buf, scratch_pages);
 	close(fd);
 	return ret;
 }
@@ -378,8 +378,15 @@ static int cmd_hpush(int argc, char **argv)
 		fprintf(stderr, "[hpush] Need exactly one argument: file\n");
 		return -EINVAL;
 	}
+	
+	char *src_path = argv[optind];
 
-	ret = hpush_file(argv[optind], dst_name, append);
+	if (dst_name) {
+		ret = hpush_file(src_path, dst_name, append);
+	} else {
+		dst_name = strdup(src_path);
+		ret = hpush_file(src_path, basename(dst_name), append);
+	}
 	free(dst_name);
 	return ret;
 }
@@ -397,7 +404,7 @@ static int cmd_hrange(int argc, char **argv)
 	kafl_range_t range __attribute__((aligned(PAGE_SIZE)));
 
 	for (int i = optind; i < argc; i++) {
-		if (3 != sscanf(argv[i], "%u,%x-%x",
+		if (3 != sscanf(argv[i], "%lu,%lx-%lx",
 					    &range.num, &range.start, &range.end)) {
 			fprintf(stderr, "Usage: hrange id,start-end [id,start-end...]");
 			return -EINVAL;
@@ -412,18 +419,18 @@ static int cmd_hrange(int argc, char **argv)
 		}
 		if ((range.end & 0xfff) != 0) {
 			uint64_t rounded = (range.end / PAGE_SIZE + 1) * PAGE_SIZE;
-			fprintf(stderr, "[hrange] Rounding up to page boundary: 0x%08x => 0x%08x\n",
+			fprintf(stderr, "[hrange] Rounding up to page boundary: 0x%08lx => 0x%08lx\n",
 					range.end, rounded);
 			range.end = rounded;
 		}
 		if ((range.start & 0xfff) != 0) {
 			uint64_t rounded = range.start - (range.start % PAGE_SIZE);
-			fprintf(stderr, "[hrange] Rounding down to page boundary: 0x%08x => 0x%08x\n",
+			fprintf(stderr, "[hrange] Rounding down to page boundary: 0x%08lx => 0x%08lx\n",
 					range.start, rounded);
 			range.start = rounded;
 		}
 
-		fprintf(stderr, "[hrange] Submit range %lu: %lx-%lx\n",
+		fprintf(stderr, "[hrange] Submit range %lu: 0x%08lx-0x%08lx\n",
 				range.num, range.start, range.end);
 		hypercall(HYPERCALL_KAFL_RANGE_SUBMIT, (uintptr_t)&range);
 	}
@@ -438,7 +445,7 @@ static int check_host_config(int verbose)
 
 	if (verbose) {
 		fprintf(stderr, "[check] GET_HOST_CONFIG\n");
-		fprintf(stderr, "[check]   host magic:  0x%x, version: 0x%x\n", host_config.host_magic);
+		fprintf(stderr, "[check]   host magic:  0x%x, version: 0x%x\n", host_config.host_magic, host_config.host_version);
 		fprintf(stderr, "[check]   bitmap size: 0x%x, ijon:    0x%x\n", host_config.bitmap_size, host_config.ijon_bitmap_size);
 		fprintf(stderr, "[check]   payload size: %u KB\n", host_config.payload_buffer_size/1024);
 		fprintf(stderr, "[check]   worker id: %d\n", host_config.worker_id);
