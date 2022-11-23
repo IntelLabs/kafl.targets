@@ -58,26 +58,6 @@ static void usage_error(const char *msg)
 }
 
 /**
- * Check if a file has data
- */
-static bool file_is_ready(int fd)
-{
-	struct timeval tv = {
-		.tv_sec = 0,
-		.tv_usec = 10,
-	};
-
-	fd_set fds;
-	FD_ZERO(&fds);
-	FD_SET(fd, &fds);
-
-	if (!select(fd+1, &fds, NULL, NULL, &tv))
-		return false;
-
-	return true;
-}
-
-/**
  * Read stdin or file argument and output to hprintf buffer.
  *
  * Unlike cat, we first check and print <stdin> and then also
@@ -89,7 +69,7 @@ static int cmd_hcat(int argc, char **argv)
 	size_t read = 0;
 	size_t written = 0;
 	
-	if (file_is_ready(fileno(stdin))) {
+	if (!isatty(fileno(stdin))) {
 		written += hprintf_from_file(stdin);
 	}
 
