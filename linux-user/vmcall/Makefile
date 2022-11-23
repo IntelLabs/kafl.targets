@@ -12,7 +12,7 @@ debug: vmcall
 
 release: static
 
-vmcall: src/vmcall.c src/util.c
+vmcall: src/vmcall.c src/nyx_agent.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 vmcall.cpio.gz: vmcall
