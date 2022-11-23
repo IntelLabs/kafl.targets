@@ -37,7 +37,7 @@ test: $(TARGET).cpio.gz $(TARGET).so
 		--memory 512 \
 		--work-dir $$KAFL_WORKDIR \
 		--sharedir $$PWD \
-		--purge -v --log -t 5 -ts 4 --log-hprintf
+		--purge -t 2 -ts 1 --log-hprintf
 
 clean:
 	rm -f $(TARGET).so $(TARGET).cpio.gz
