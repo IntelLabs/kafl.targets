@@ -134,7 +134,7 @@ ssize_t hprintf_from_file(FILE *f)
 
 	while (!feof(f)) {
 		read = fread(hprintf_buffer, 1, sizeof(hprintf_buffer), f);
-		if (read < 0) {
+		if (ferror(f)) {
 			fprintf(stderr, "Error reading from file descriptor %d\n", fileno(f));
 			return -1;
 		}
@@ -271,11 +271,11 @@ int check_host_magic(int verbose)
 	hypercall(HYPERCALL_KAFL_GET_HOST_CONFIG, (uintptr_t)&host_config);
 
 	if (verbose) {
-		fprintf(stderr, "[check] GET_HOST_CONFIG\n");
-		fprintf(stderr, "[check]   host magic:  0x%x, version: 0x%x\n", host_config.host_magic, host_config.host_version);
-		fprintf(stderr, "[check]   bitmap size: 0x%x, ijon:    0x%x\n", host_config.bitmap_size, host_config.ijon_bitmap_size);
-		fprintf(stderr, "[check]   payload size: %u KB\n", host_config.payload_buffer_size/1024);
-		fprintf(stderr, "[check]   worker id: %d\n", host_config.worker_id);
+		fprintf(stdout, "[check] GET_HOST_CONFIG\n");
+		fprintf(stdout, "[check]   host magic:  0x%x, version: 0x%x\n", host_config.host_magic, host_config.host_version);
+		fprintf(stdout, "[check]   bitmap size: 0x%x, ijon:    0x%x\n", host_config.bitmap_size, host_config.ijon_bitmap_size);
+		fprintf(stdout, "[check]   payload size: %u KB\n", host_config.payload_buffer_size/1024);
+		fprintf(stdout, "[check]   worker id: %d\n", host_config.worker_id);
 	}
 
 	if (host_config.host_magic != NYX_HOST_MAGIC) {
