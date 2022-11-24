@@ -21,17 +21,16 @@
 #define KAFL_CPUID_IDENTIFIER 0x80000004
 #define PAGE_SIZE 4096
 
-#define cpuid(in,a,b,c,d)\
-	asm("cpuid": "=a" (a), "=b" (b), "=c" (c), "=d" (d) : "a" (in));
+#define cpuid(in, a, b, c, d) \
+	asm("cpuid" : "=a" (a), "=b" (b), "=c" (c), "=d" (d) : "a" (in));
 
-#define ARRAY_SIZE(ARRAY) (sizeof(ARRAY)/sizeof((ARRAY)[0]))
+#define ARRAY_SIZE(ARRAY) (sizeof(ARRAY) / sizeof((ARRAY)[0]))
 
 #ifdef DEBUG
 #define debug_printf(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
 #else
 #define debug_printf(fmt, ...)
 #endif
-
 
 typedef enum {
 	nyx_cpu_invalid = -1,
@@ -42,12 +41,12 @@ typedef enum {
 
 extern nyx_cpu_type_t nyx_cpu_type;
 
-void* malloc_resident_pages(size_t num_pages);
+void *malloc_resident_pages(size_t num_pages);
 void free_resident_pages(void *buf, size_t num_pages);
 nyx_cpu_type_t get_nyx_cpu_type(void);
 unsigned long hypercall(unsigned id, uintptr_t arg);
 ssize_t hprintf_from_file(FILE *f);
-int hget_file(char* src_path, mode_t flags);
+int hget_file(char *src_path, mode_t flags);
 int hpush_file(char *src_path, char *dst_name, int append);
 int check_host_magic(int verbose);
 void habort_msg(const char *msg);

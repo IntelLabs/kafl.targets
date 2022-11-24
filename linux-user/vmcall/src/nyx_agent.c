@@ -39,13 +39,12 @@
 
 #include "nyx_agent.h"
 
-
 nyx_cpu_type_t nyx_cpu_type = nyx_cpu_invalid;
 
 /**
  * Allocate page-aligned memory
  */
-void* malloc_resident_pages(size_t num_pages)
+void *malloc_resident_pages(size_t num_pages)
 {
 	size_t data_size = PAGE_SIZE * num_pages;
 	void *ptr = NULL;
@@ -92,7 +91,7 @@ static nyx_cpu_type_t _get_nyx_cpu_type(void)
 
 	memcpy(str, regs, sizeof(regs));
 	str[16] = '\0';
-	
+
 	//debug_printf("CPUID string: >>%s<<\n", str);
 
 	if (0 == strncmp(str, "NYX vCPU (PT)", sizeof(str))) {
@@ -118,18 +117,18 @@ nyx_cpu_type_t get_nyx_cpu_type(void)
 unsigned long hypercall(unsigned id, uintptr_t arg)
 {
 	switch (nyx_cpu_type) {
-		case nyx_cpu_v1:
-			debug_printf("\t# vmcall(0x%x,0x%lx) ..\n", id, arg);
-			return kAFL_hypercall(id, arg);
-		case nyx_cpu_v2:
-		case nyx_cpu_none:
-			debug_printf("\t# vmcall(0x%x,0x%lx) skipped..\n", id, arg);
-			return 0;
-		case nyx_cpu_invalid:
-		default:
-			fprintf(stderr, "get_nyx_cpu_type() must be called first\n");
-			habort_msg("get_nyx_cpu_type() must be called first\n");
-			assert(false);
+	case nyx_cpu_v1:
+		debug_printf("\t# vmcall(0x%x,0x%lx) ..\n", id, arg);
+		return kAFL_hypercall(id, arg);
+	case nyx_cpu_v2:
+	case nyx_cpu_none:
+		debug_printf("\t# vmcall(0x%x,0x%lx) skipped..\n", id, arg);
+		return 0;
+	case nyx_cpu_invalid:
+	default:
+		fprintf(stderr, "get_nyx_cpu_type() must be called first\n");
+		habort_msg("get_nyx_cpu_type() must be called first\n");
+		assert(false);
 	}
 }
 
@@ -173,7 +172,7 @@ ssize_t hprintf_from_file(FILE *f)
 	return written;
 }
 
-int hget_file(char* src_path, mode_t flags)
+int hget_file(char *src_path, mode_t flags)
 {
 	static req_data_bulk_t req_file __attribute((aligned(PAGE_SIZE)));
 
@@ -183,7 +182,7 @@ int hget_file(char* src_path, mode_t flags)
 	size_t scratch_size = num_pages * PAGE_SIZE;
 	uint8_t *scratch_buf = malloc_resident_pages(num_pages);
 
-	for (int i=0; i<num_pages; i++) {
+	for (int i = 0; i < num_pages; i++) {
 		req_file.addresses[i] = (uintptr_t)(scratch_buf + i * PAGE_SIZE);
 	}
 	req_file.num_addresses = num_pages;
@@ -207,7 +206,7 @@ int hget_file(char* src_path, mode_t flags)
 		read = hypercall(HYPERCALL_KAFL_REQ_STREAM_DATA_BULK, (uintptr_t)&req_file);
 		if (read == 0xFFFFFFFFFFFFFFFFUL) {
 			fprintf(stderr, "[hget]  Could not get %s from sharedir. Check Qemu logs.\n",
-					req_file.file_name);
+			        req_file.file_name);
 			ret = -EIO;
 			goto err_out;
 		}
@@ -220,7 +219,7 @@ int hget_file(char* src_path, mode_t flags)
 
 		written += read;
 		debug_printf("[hget]  %s => %s (read: %lu / written: %lu)\n",
-				req_file.file_name, dst_path, read, written);
+		             req_file.file_name, dst_path, read, written);
 
 	} while (read == scratch_size);
 
@@ -240,7 +239,7 @@ int hpush_file(char *src_path, char *dst_name, int append)
 	ssize_t bytes = 0;
 
 	uint8_t *scratch_buf = NULL;
-	size_t scratch_size = 1024*1024;
+	size_t scratch_size = 1024 * 1024;
 	unsigned scratch_pages = scratch_size / PAGE_SIZE;
 
 	kafl_dump_file_t put_req __attribute__((aligned(PAGE_SIZE)));
@@ -248,20 +247,20 @@ int hpush_file(char *src_path, char *dst_name, int append)
 	fd = open(src_path, O_RDONLY);
 	if (fd < 0) {
 		fprintf(stderr, "[hpush] Failed to open file %s: %s\n",
-				src_path, strerror(errno));
+		        src_path, strerror(errno));
 		ret = errno;
 		goto err_out;
 	}
 
 	scratch_buf = malloc_resident_pages(scratch_pages);
-	
+
 	if (!scratch_buf) {
 		fprintf(stderr, "[hpush] Failed to allocate file buffer for %s: %s\n",
-				src_path, strerror(errno));
+		        src_path, strerror(errno));
 		ret = errno;
 		goto err_out;
 	}
-	
+
 	put_req.file_name_str_ptr = (uintptr_t)dst_name;
 	put_req.append = append;
 	put_req.data_ptr = (uintptr_t)scratch_buf;
@@ -282,9 +281,9 @@ int hpush_file(char *src_path, char *dst_name, int append)
 			put_req.append = 1;
 		}
 	} while (bytes > 0);
-			
+
 	hprintf("[hpush] %s => %s (%lu bytes)\n",
-			src_path, dst_name, total_sent);
+	        src_path, dst_name, total_sent);
 
 err_out:
 	free_resident_pages(scratch_buf, scratch_pages);
@@ -300,21 +299,26 @@ int check_host_magic(int verbose)
 
 	if (verbose) {
 		fprintf(stdout, "[check] GET_HOST_CONFIG\n");
-		fprintf(stdout, "[check]   host magic:  0x%x, version: 0x%x\n", host_config.host_magic, host_config.host_version);
-		fprintf(stdout, "[check]   bitmap size: 0x%x, ijon:    0x%x\n", host_config.bitmap_size, host_config.ijon_bitmap_size);
-		fprintf(stdout, "[check]   payload size: %u KB\n", host_config.payload_buffer_size/1024);
+		fprintf(stdout, "[check]   host magic:  0x%x, version: 0x%x\n",
+		        host_config.host_magic, host_config.host_version);
+		fprintf(stdout, "[check]   bitmap size: 0x%x, ijon size: 0x%x\n",
+		        host_config.bitmap_size, host_config.ijon_bitmap_size);
+		fprintf(stdout, "[check]   payload size: %u KB\n",
+		        host_config.payload_buffer_size/1024);
 		fprintf(stdout, "[check]   worker id: %d\n", host_config.worker_id);
 	}
 
 	if (host_config.host_magic != NYX_HOST_MAGIC) {
-		fprintf(stderr, "[check] HOST_MAGIC mismatch: %08x != %08x\n",
-				host_config.host_magic, NYX_HOST_MAGIC);
+		fprintf(stderr,
+		        "[check] HOST_MAGIC mismatch: %08x != %08x\n",
+		        host_config.host_magic, NYX_HOST_MAGIC);
 		return -1;
 	}
 
 	if (host_config.host_version != NYX_HOST_VERSION) {
-		fprintf(stderr, "[check] HOST_VERSION mismatch: %08x != %08x\n",
-				host_config.host_version, NYX_HOST_VERSION);
+		fprintf(stderr,
+		        "[check] HOST_VERSION mismatch: %08x != %08x\n",
+		        host_config.host_version, NYX_HOST_VERSION);
 		return -1;
 	}
 	return 0;
