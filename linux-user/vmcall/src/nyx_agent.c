@@ -40,7 +40,7 @@
 #include "nyx_agent.h"
 
 
-nyx_cpu_type_t nyx_cpu_type = nyx_cpu_none;
+nyx_cpu_type_t nyx_cpu_type = nyx_cpu_invalid;
 
 /**
  * Allocate page-aligned memory
@@ -83,7 +83,7 @@ void free_resident_pages(void *buf, size_t num_pages)
 /**
  * Get Nyx VMM type from CPUID
  */
-nyx_cpu_type_t get_nyx_cpu_type(void)
+static nyx_cpu_type_t _get_nyx_cpu_type(void)
 {
 	uint32_t regs[4];
 	char str[17];
@@ -104,6 +104,14 @@ nyx_cpu_type_t get_nyx_cpu_type(void)
 	}
 }
 
+nyx_cpu_type_t get_nyx_cpu_type(void)
+{
+	if (nyx_cpu_type == nyx_cpu_invalid) {
+		nyx_cpu_type = _get_nyx_cpu_type();
+	}
+	return nyx_cpu_type;
+}
+
 /**
  * Execute hypercall depending on Nyx CPU type
  */
@@ -117,9 +125,29 @@ unsigned long hypercall(unsigned id, uintptr_t arg)
 		case nyx_cpu_none:
 			debug_printf("\t# vmcall(0x%x,0x%lx) skipped..\n", id, arg);
 			return 0;
+		case nyx_cpu_invalid:
 		default:
+			fprintf(stderr, "get_nyx_cpu_type() must be called first\n");
+			habort_msg("get_nyx_cpu_type() must be called first\n");
 			assert(false);
 	}
+}
+
+void habort_msg(const char *msg)
+{
+	hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)msg);
+}
+
+void hrange_submit(unsigned id, uintptr_t start, uintptr_t end)
+{
+	uint64_t range_arg[3] __attribute__((aligned(PAGE_SIZE)));
+	memset(range_arg, 0, sizeof(range_arg));
+
+	range_arg[0] = start;
+	range_arg[1] = end;
+	range_arg[2] = id;
+
+	hypercall(HYPERCALL_KAFL_RANGE_SUBMIT, (uintptr_t)range_arg);
 }
 
 /**
@@ -290,20 +318,4 @@ int check_host_magic(int verbose)
 		return -1;
 	}
 	return 0;
-}
-
-void habort_msg(const char *msg)
-{
-	hypercall(HYPERCALL_KAFL_USER_ABORT, (uintptr_t)msg);
-}
-
-void hrange_submit(unsigned id, uintptr_t start, uintptr_t end)
-{
-	uint64_t range_arg[3] __attribute__((aligned(PAGE_SIZE)));
-
-	range_arg[0] = start;
-	range_arg[1] = end;
-	range_arg[2] = id;
-
-	hypercall(HYPERCALL_KAFL_RANGE_SUBMIT, (uintptr_t)range_arg);
 }
