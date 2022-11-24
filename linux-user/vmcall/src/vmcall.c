@@ -36,17 +36,15 @@
 #include "nyx_agent.h"
 //#include "utils.h"
 
-
 struct cmd_table {
 	char *name;
-	int (*handler)(int, char**);
+	int (*handler)(int, char **);
 };
 
 static void usage()
 {
-	char *msg =
-		"\nUsage: vmcall [cmd] [args...]\n\n"
-		"\twhere cmd := { check, hcat, hget, hpush, habort, hpanic, hrange, hlock }\n";
+	char *msg = "\nUsage: vmcall [cmd] [args...]\n\n"
+	            "\twhere cmd := { check, hcat, hget, hpush, habort, hpanic, hrange, hlock }\n";
 
 	fputs(msg, stderr);
 }
@@ -68,7 +66,7 @@ static int cmd_hcat(int argc, char **argv)
 	FILE *f;
 	size_t read = 0;
 	size_t written = 0;
-	
+
 	if (!isatty(fileno(stdin))) {
 		written += hprintf_from_file(stdin);
 	}
@@ -118,15 +116,15 @@ static int cmd_hget(int argc, char **argv)
 
 	while ((opt = getopt(argc, argv, "xo:")) != -1) {
 		switch (opt) {
-			case 'x':
-				fmode |= S_IXUSR | S_IXGRP | S_IXOTH;
-				break;
-			case 'o':
-				dst_root = strdup(optarg);
-				break;
-			default:
-				fprintf(stderr, "Usage: hget [-x] [-o path/to/dest/] file [file..]\n");
-				return -EINVAL;
+		case 'x':
+			fmode |= S_IXUSR | S_IXGRP | S_IXOTH;
+			break;
+		case 'o':
+			dst_root = strdup(optarg);
+			break;
+		default:
+			fprintf(stderr, "Usage: hget [-x] [-o path/to/dest/] file [file..]\n");
+			return -EINVAL;
 		}
 	}
 
@@ -158,26 +156,26 @@ static int cmd_hpush(int argc, char **argv)
 	bool append = 0;
 	char *dst_name = NULL;
 	int opt;
-	
+
 	while ((opt = getopt(argc, argv, "ao:")) != -1) {
 		switch (opt) {
-			case 'a':
-				append = 1;
-				break;
-			case 'o':
-				dst_name = strdup(optarg);
-				break;
-			default:
-				fprintf(stderr, "Usage: hpush [-o dest_pattern] file\n");
-				return -EINVAL;
+		case 'a':
+			append = 1;
+			break;
+		case 'o':
+			dst_name = strdup(optarg);
+			break;
+		default:
+			fprintf(stderr, "Usage: hpush [-o dest_pattern] file\n");
+			return -EINVAL;
 		}
 	}
 
-	if (optind +1 != argc) {
+	if (optind + 1 != argc) {
 		fprintf(stderr, "[hpush] Need exactly one argument: file\n");
 		return -EINVAL;
 	}
-	
+
 	char *src_path = argv[optind];
 
 	if (dst_name) {
@@ -199,8 +197,7 @@ static int cmd_hrange(int argc, char **argv)
 	uint64_t range_end;
 
 	for (int i = optind; i < argc; i++) {
-		if (3 != sscanf(argv[i], "%lu,%lx-%lx",
-					    &range_id, &range_start, &range_end)) {
+		if (3 != sscanf(argv[i], "%lu,%lx-%lx", &range_id, &range_start, &range_end)) {
 			fprintf(stderr, "Usage: hrange id,start-end [id,start-end...]");
 			return -EINVAL;
 		}
@@ -215,18 +212,18 @@ static int cmd_hrange(int argc, char **argv)
 		if ((range_end & 0xfff) != 0) {
 			uint64_t rounded = (range_end / PAGE_SIZE + 1) * PAGE_SIZE;
 			fprintf(stderr, "[hrange] Rounding up to page boundary: 0x%08lx => 0x%08lx\n",
-					range_end, rounded);
+			        range_end, rounded);
 			range_end = rounded;
 		}
 		if ((range_start & 0xfff) != 0) {
 			uint64_t rounded = range_start - (range_start % PAGE_SIZE);
 			fprintf(stderr, "[hrange] Rounding down to page boundary: 0x%08lx => 0x%08lx\n",
-					range_start, rounded);
+			        range_start, rounded);
 			range_start = rounded;
 		}
 
 		fprintf(stderr, "[hrange] Submit range %lu: 0x%08lx-0x%08lx\n",
-				range_id, range_start, range_end);
+		        range_id, range_start, range_end);
 		hrange_submit(range_id, range_start, range_end);
 	}
 	return 0;
@@ -237,15 +234,15 @@ static int cmd_check(int argc, char **argv)
 	int verbose = 1;
 
 	switch (nyx_cpu_type) {
-		case nyx_cpu_v1:
-			fprintf(stderr, "[check] Detected NYX vCPU (PT)\n");
-			break;
-		case nyx_cpu_v2:
-			fprintf(stderr, "[check] Detected NYX vCPU (NO-PT)\n");
-			break;
-		case nyx_cpu_none:
-			fprintf(stderr, "[check] Detected No Nyx support :-(\n");
-			break;
+	case nyx_cpu_v1:
+		fprintf(stderr, "[check] Detected NYX vCPU (PT)\n");
+		break;
+	case nyx_cpu_v2:
+		fprintf(stderr, "[check] Detected NYX vCPU (NO-PT)\n");
+		break;
+	case nyx_cpu_none:
+		fprintf(stderr, "[check] Detected No Nyx support :-(\n");
+		break;
 	}
 
 	if (nyx_cpu_type != nyx_cpu_none) {
@@ -283,7 +280,7 @@ static int cmd_dispatch(int argc, char **argv)
 		{ "check",  cmd_check  },
 	};
 
-	for (int i=0; i<ARRAY_SIZE(cmd_list); i++) {
+	for (int i = 0; i < ARRAY_SIZE(cmd_list); i++) {
 		if (0 == strncmp(basename(argv[optind]), cmd_list[i].name, strlen(cmd_list[i].name))) {
 			optind += 1; // increment argv offset
 			return cmd_list[i].handler(argc, argv);
