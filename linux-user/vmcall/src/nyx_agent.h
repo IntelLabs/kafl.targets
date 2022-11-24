@@ -34,6 +34,7 @@
 
 
 typedef enum {
+	nyx_cpu_invalid = -1,
 	nyx_cpu_none = 0,
 	nyx_cpu_v1, /* Nyx CPU used by KVM-PT */
 	nyx_cpu_v2  /* Nyx CPU used by vanilla KVM + VMWare backdoor */
