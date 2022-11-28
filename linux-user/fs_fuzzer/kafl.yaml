@@ -1,0 +1,3 @@
+# override qemu configuration
+qemu_append: nokaslr oops=panic nopti mitigations=off console=ttyS0 hprintf=7
+payload_size: 294912
