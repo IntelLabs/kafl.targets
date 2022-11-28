@@ -160,11 +160,12 @@ int main(int argc, char **argv)
 	ret = ioctl(loopfd, LOOP_SET_FD, backingfile);
 	CHECK_ERRNO(ret != -1, "Failed to ioctl(LOOP_SET_FD)");
 
+	pbuf->size = 20;
+	kcov_init();
+
 	while (1) {
 		static unsigned long mountflags = 0;
 
-		kAFL_hypercall(HYPERCALL_KAFL_NEXT_PAYLOAD, 0);
-		kAFL_hypercall(HYPERCALL_KAFL_ACQUIRE, 0);
 
 		if ((size_t)pbuf->size > sizeof(mountflags)) {
 			//memcpy(&mountflags, pbuf->data, sizeof(mountflags));
@@ -183,7 +184,7 @@ int main(int argc, char **argv)
 
 			if (ret != 0) {
 				//hprintf("mount() => %d: %s\n", ret, strerror(errno));
-				system("dmesg -c |vmcall hcat");
+				//system("dmesg -c |vmcall hcat");
 			} else {
 				struct stat st = { 0 };
 				hprintf("mount() => success!\n");
@@ -192,7 +193,12 @@ int main(int argc, char **argv)
 				umount2("/tmp/a", MNT_FORCE);
 			}
 		}
+
+		// first round for warmup - real start now
 		kAFL_hypercall(HYPERCALL_KAFL_RELEASE, 0);
+		kAFL_hypercall(HYPERCALL_KAFL_NEXT_PAYLOAD, 0);
+		kAFL_hypercall(HYPERCALL_KAFL_ACQUIRE, 0);
+
 	}
 
 	close(backingfile);
