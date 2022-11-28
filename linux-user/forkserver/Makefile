@@ -2,12 +2,15 @@ NYX_INCLUDE_PATH ?= $(EXAMPLES_ROOT)
 
 KERNEL_IMAGE ?= /boot/vmlinuz-$$(uname -r)
 
-CFLAGS += -Wall -Werror -I$(NYX_INCLUDE_PATH)
-LIBS += -ldl
-
 TARGET=forkserver
 
 all: debug
+
+LIBNYX_AGENT_ROOT ?= $(EXAMPLES_ROOT)/linux-user/libnyx_agent
+include $(LIBNYX_AGENT_ROOT)/Makefile.inc
+
+CFLAGS += -Wall -I$(NYX_INCLUDE_PATH) -I$(LIBNYX_AGENT_INCLUDE)
+LIBS += -ldl $(LIBNYX_AGENT_STATIC)
 
 # may have to inject via LD_PRELOAD="/lib/x86_64-linux-gnu/libasan.so.5:/fuzz/forkserver.so"
 asan: CFLAGS += -g -O0 -DDEBUG -fsanitize=address,undefined
@@ -20,7 +23,8 @@ debug: $(TARGET).so
 release: CFLAGS += -g -Og
 release: $(TARGET).so
 
-$(TARGET).so: src/$(TARGET).c ../vmcall/src/nyx_agent.c
+$(TARGET).so: $(LIBNYX_AGENT_BUILD)
+$(TARGET).so: src/$(TARGET).c
 	$(CC) $(CFLAGS) $(LDFLAGS) -shared -fPIC $^ -o $@ $(LIBS)
 
 ../vmcall/vmcall:

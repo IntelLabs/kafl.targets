@@ -27,7 +27,7 @@
 #include <assert.h>
 
 #include "nyx_api.h"
-#include "../../vmcall/src/nyx_agent.h"
+#include "nyx_agent.h"
 
 #define ASAN_EXIT_CODE 101
 //#define REDIRECT_STDERR_TO_HPRINTF

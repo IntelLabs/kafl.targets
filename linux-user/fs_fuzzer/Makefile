@@ -1,23 +1,31 @@
 NYX_INCLUDE_PATH ?= $(EXAMPLES_ROOT)
 KERNEL_IMAGE ?= /boot/vmlinuz-$$(uname -r)
 
-CFLAGS += -g -O0 -I$(NYX_INCLUDE_PATH)
-
 all: debug
 
-static: CFLAGS += -static
+LIBNYX_AGENT_ROOT ?= $(EXAMPLES_ROOT)/linux-user/libnyx_agent
+include $(LIBNYX_AGENT_ROOT)/Makefile.inc
+
+CFLAGS += -Wall -I$(NYX_INCLUDE_PATH) -I$(LIBNYX_AGENT_INCLUDE)
+LIBS += $(LIBNYX_AGENT_STATIC)
+
+static: CFLAGS += -O2 -static
 static: fs_fuzzer
 
-debug: CFLAGS += -Wall -Wextra -fsanitize=address,undefined -DDEBUG
+debug: CFLAGS += -g -O0 -DDEBUG
 debug: fs_fuzzer
+
+asan: CFLAGS += -g -O0 -DDEBUG -fsanitize=address,undefined
+asan: fs_fuzzer
 
 release: static
 
 ../vmcall/vmcall:
 	$(MAKE) -C $$(dirname $@)
 
-fs_fuzzer: src/fs_fuzzer.c src/util.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+fs_fuzzer: $(LIBNYX_AGENT_BUILD)
+fs_fuzzer: src/fs_fuzzer.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS)
 
 fs_fuzzer.cpio.gz: fs_fuzzer ../vmcall/vmcall
 	../scripts/gen_initrd.sh $@ $^
