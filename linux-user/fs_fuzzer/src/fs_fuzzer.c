@@ -25,7 +25,7 @@
 #include <linux/loop.h>
 
 #include "nyx_api.h"
-#include "util.h"
+#include "nyx_agent.h"
 
 #define PAGE_SIZE 4096
 #define KAFL_TMP_FILE "/tmp/trash"
