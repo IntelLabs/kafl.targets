@@ -1,0 +1,3 @@
+src/nyx_agent.o
+libnyx_agent.a
+libnyx_agent.so
