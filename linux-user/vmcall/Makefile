@@ -1,22 +1,30 @@
 NYX_INCLUDE_PATH ?= $(EXAMPLES_ROOT)
-
 KERNEL_IMAGE ?= /boot/vmlinuz-$$(uname -r)
 SHAREDIR ?= $$PWD/sharedir
 
-CFLAGS += -g -O0 -I$(NYX_INCLUDE_PATH)
-
 all: debug
 
-static: CFLAGS += -static
-static: vmcall
+LIBNYX_AGENT_ROOT ?= $(EXAMPLES_ROOT)/linux-user/libnyx_agent
+include $(LIBNYX_AGENT_ROOT)/Makefile.inc
 
-debug: CFLAGS += -fsanitize=address,undefined -DDEBUG
-debug: vmcall
+CFLAGS += -g -O0 -I$(NYX_INCLUDE_PATH) -I$(LIBNYX_AGENT_INCLUDE)
+LIBS += $(LIBNYX_AGENT_STATIC)
+
 
 release: static
 
-vmcall: src/vmcall.c src/nyx_agent.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+static: CFLAGS += -static -O2
+static: vmcall
+
+debug: CFLAGS += -DDEBUG -Og
+debug: vmcall
+
+asan: CFLAGS += -fsanitize=address,undefined -DDEBUG
+asan: vmcall
+
+vmcall: $(LIBNYX_AGENT_BUILD)
+vmcall: src/vmcall.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS)
 
 vmcall.cpio.gz: vmcall
 	../scripts/gen_initrd.sh $@ $^
