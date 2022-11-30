@@ -17,6 +17,7 @@
  */
 
 #include <nyx_api.h>
+#include <sys/types.h>
 
 #define KAFL_CPUID_IDENTIFIER 0x80000004
 #define PAGE_SIZE 4096

@@ -35,8 +35,7 @@ go version
 Syzkaller for Linux setup: https://github.com/google/syzkaller/blob/master/docs/linux/setup.md
 
 ```
-git clone https://github.com/google/syzkaller
-git -C syzkaller apply < syzkaller.patch
+git clone -b kafl-agent https://github.com/il-steffen/syzkaller.git
 MAKEFLAGS="" make -C syzkaller
 ```
 
