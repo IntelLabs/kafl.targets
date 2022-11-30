@@ -11,35 +11,31 @@ LIBS += -ldl $(LIBNYX_AGENT_STATIC)
 
 TARGET=syz-agent
 
-$(TARGET).cpio.gz: ../vmcall/vmcall
+$(TARGET).cpio.gz: ../vmcall/vmcall syzkaller/bin/linux_amd64/syz-stress
 	../scripts/gen_initrd.sh $@ $^
 
-../vmcall/vmcall:
-	$(MAKE) -C ../vmcall
-
-../forkserver/forkserver.so:
-	$(MAKE) -C ../forkserver
+../execserver/execserver:
+	$(MAKE) -C ../execserver
 
 test: $(TARGET).cpio.gz sharedir
 	# default kAFL config enables Linux serial console, see $$WORKDIR/serial_00.log
-	kafl_fuzz.py \
+	kafl fuzz \
 		--kernel $(KERNEL_IMAGE) \
 		--initrd $< \
 		--memory 512 \
-		--work-dir $$KAFL_WORKDIR \
 		--sharedir $$PWD/sharedir \
-		--purge -t 2 -ts 1 --log-hprintf
+		--purge -t 6 -ts 4 --log-hprintf
 
 sharedir: ../vmcall/vmcall
-sharedir: ../forkserver/forkserver.so
-sharedir: syzkaller/bin/linux_amd64/syz-stress
+sharedir: ../execserver/execserver
+#sharedir: syzkaller/bin/linux_amd64/syz-stress
 sharedir: syzkaller/bin/linux_amd64/syz-executor
 sharedir:
 	mkdir -p sharedir
-	ln -s ../agent.sh sharedir/agent.sh
+	ln -sf ../agent.sh sharedir/agent.sh
 	cp $^ sharedir/
 
 
 clean:
-	rm -rf sharedir
+	rm -rf sharedir $(TARGET).cpio.gz
 
