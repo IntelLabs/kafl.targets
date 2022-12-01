@@ -34,12 +34,11 @@ $(TARGET).cpio.gz: $(TARGET).so ../vmcall/vmcall /usr/bin/bison
 	../scripts/gen_initrd.sh $@ $^
 
 test: $(TARGET).cpio.gz $(TARGET).so
-	# default kAFL config enables Linux serial console, see $$WORKDIR/serial_00.log
-	kafl_fuzz.py \
+	# default kAFL config enables Linux serial console, see $$KAFL_WORK_DIR/serial_00.log
+	kafl fuzz \
 		--kernel $(KERNEL_IMAGE) \
 		--initrd $< \
 		--memory 512 \
-		--work-dir $$KAFL_WORKDIR \
 		--sharedir $$PWD \
 		--purge -t 2 -ts 1 --log-hprintf
 

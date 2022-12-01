@@ -1,6 +1,7 @@
 NYX_INCLUDE_PATH ?= $(EXAMPLES_ROOT)
 KERNEL_IMAGE ?= /boot/vmlinuz-$$(uname -r)
 SHAREDIR ?= $$PWD/sharedir
+KAFL_WORKDIR=$$(dynaconf -i kafl_fuzzer.common.config.settings get work_dir)
 
 all: debug
 
@@ -30,11 +31,10 @@ vmcall.cpio.gz: vmcall
 	../scripts/gen_initrd.sh $@ $^
 
 run: vmcall.cpio.gz
-	@# default kAFL config enables Linux serial console, see $$WORKDIR/serial_00.log
-	kafl_fuzz.py \
+	@# default kAFL config enables Linux serial console, see $$KAFL_WORK_DIR/serial_00.log
+	kafl fuzz \
 		--kernel $(KERNEL_IMAGE) \
 		--initrd $< \
-		--work-dir $$KAFL_WORKDIR \
 		--sharedir $(SHAREDIR) \
 		--purge -v --log
 
@@ -53,9 +53,9 @@ test:
 	@cd testshare && md5sum test_*bin > test_md5sums
 	@cp test_agent.sh testshare/agent.sh
 	SHAREDIR=$$PWD/testshare $(MAKE) run
-	@cp testshare/test_md5sums $$KAFL_WORKDIR/dump/test_md5sums
-	@cd $$KAFL_WORKDIR/dump/ && md5sum -c test_md5sums || echo "hpush/hget fail!"
-	@test $$(grep -c foobar $$KAFL_WORKDIR/dump/foo) -eq 3 || echo "hcat fail!"
+	@cp testshare/test_md5sums $(KAFL_WORKDIR)/dump/test_md5sums
+	@cd $(KAFL_WORKDIR)/dump/ && md5sum -c test_md5sums || echo "hpush/hget fail!"
+	@test $$(grep -c foobar $(KAFL_WORKDIR)/dump/foo) -eq 3 || echo "hcat fail!"
 
 clean:
 	rm -f vmcall

@@ -161,7 +161,6 @@ int main(int argc, char **argv)
 	CHECK_ERRNO(ret != -1, "Failed to ioctl(LOOP_SET_FD)");
 
 	pbuf->size = 20;
-	kcov_init();
 
 	while (1) {
 		static unsigned long mountflags = 0;

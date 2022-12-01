@@ -31,13 +31,11 @@ fs_fuzzer.cpio.gz: fs_fuzzer ../vmcall/vmcall
 	../scripts/gen_initrd.sh $@ $^
 
 test: fs_fuzzer.cpio.gz fs_fuzzer seeds
-	# default kAFL config enables Linux serial console, see $$WORKDIR/serial_00.log
-	#-ip0 81000000-81e01000 -ip1 828b5000-8290f000
-	kafl_fuzz.py \
+	# default kAFL config enables Linux serial console, see $$KAFL_WORK_DIR/serial_00.log
+	kafl fuzz \
 		--kernel $(KERNEL_IMAGE) \
 		--initrd $< \
 		--memory 512 \
-		--work-dir $$KAFL_WORKDIR \
 		--sharedir $$PWD/sharedir/ \
 		--seed-dir $$PWD/seeds/ \
 		-t 4 -ts 2 -tc -p 32 \
