@@ -64,7 +64,6 @@ static void usage_error(const char *msg)
 static int cmd_hcat(int argc, char **argv)
 {
 	FILE *f;
-	size_t read = 0;
 	size_t written = 0;
 
 	if (!isatty(fileno(stdin))) {
@@ -190,8 +189,6 @@ static int cmd_hpush(int argc, char **argv)
 
 static int cmd_hrange(int argc, char **argv)
 {
-	int ret = 0;
-
 	uint64_t range_id;
 	uint64_t range_start;
 	uint64_t range_end;
@@ -242,6 +239,10 @@ static int cmd_check(int argc, char **argv)
 		break;
 	case nyx_cpu_none:
 		fprintf(stderr, "[check] Detected No Nyx support :-(\n");
+		break;
+	default:
+		fprintf(stderr, "[check] Error: Invalid CPU type %d\n", nyx_cpu_type);
+		return nyx_cpu_none;
 		break;
 	}
 
