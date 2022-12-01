@@ -1,13 +1,12 @@
-NYX_INCLUDE_PATH ?= $(EXAMPLES_ROOT)
-
-KERNEL_IMAGE ?= /boot/vmlinuz-$$(uname -r)
-
-TARGET=forkserver
-
 all: debug
 
-LIBNYX_AGENT_ROOT ?= $(EXAMPLES_ROOT)/linux-user/libnyx_agent
+include ../Makefile.inc
 include $(LIBNYX_AGENT_ROOT)/Makefile.inc
+
+KERNEL_IMAGE ?= /boot/vmlinuz-$$(uname -r)
+SHAREDIR ?= $$PWD
+
+TARGET=forkserver
 
 CFLAGS += -Wall -I$(NYX_INCLUDE_PATH) -I$(LIBNYX_AGENT_INCLUDE)
 LIBS += -ldl $(LIBNYX_AGENT_STATIC)
@@ -39,7 +38,7 @@ test: $(TARGET).cpio.gz $(TARGET).so
 		--kernel $(KERNEL_IMAGE) \
 		--initrd $< \
 		--memory 512 \
-		--sharedir $$PWD \
+		--sharedir $(SHAREDIR) \
 		--purge -t 2 -ts 1 --log-hprintf
 
 clean:

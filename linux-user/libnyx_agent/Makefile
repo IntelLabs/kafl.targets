@@ -1,16 +1,17 @@
-NYX_INCLUDE_PATH ?= $(EXAMPLES_ROOT)
+all: debug
+
+include ../Makefile.inc
 
 CFLAGS += -Wall -Werror -I$(NYX_INCLUDE_PATH)
 
 TARGET=libnyx_agent
 
-all: debug
+release: CFLAGS += -O2
+release: $(TARGET).so $(TARGET).a
 
 debug: CFLAGS += -g -O0 -DDEBUG
 debug: $(TARGET).so $(TARGET).a
 
-release: CFLAGS += -g -Og
-release: $(TARGET).so $(TARGET).a
 
 src/nyx_agent.o: src/nyx_agent.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -fPIC -c $^ -o $@ $(LIBS)

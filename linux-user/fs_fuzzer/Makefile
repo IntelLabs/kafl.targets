@@ -1,44 +1,46 @@
-NYX_INCLUDE_PATH ?= $(EXAMPLES_ROOT)
-KERNEL_IMAGE ?= /boot/vmlinuz-$$(uname -r)
-
 all: debug
 
-LIBNYX_AGENT_ROOT ?= $(EXAMPLES_ROOT)/linux-user/libnyx_agent
+include ../Makefile.inc
 include $(LIBNYX_AGENT_ROOT)/Makefile.inc
+
+KERNEL_IMAGE ?= /boot/vmlinuz-$$(uname -r)
+SHAREDIR ?= $$PWD/sharedir
+
+TARGET=fs_fuzzer
 
 CFLAGS += -Wall -I$(NYX_INCLUDE_PATH) -I$(LIBNYX_AGENT_INCLUDE)
 LIBS += $(LIBNYX_AGENT_STATIC)
 
-static: CFLAGS += -O2 -static
-static: fs_fuzzer
+release: static
+
+static: CFLAGS += -static -O2
+static: $(TARGET)
 
 debug: CFLAGS += -g -O0 -DDEBUG
-debug: fs_fuzzer
+debug: $(TARGET)
 
 asan: CFLAGS += -g -O0 -DDEBUG -fsanitize=address,undefined
-asan: fs_fuzzer
-
-release: static
+asan: $(TARGET)
 
 ../vmcall/vmcall:
 	$(MAKE) -C $$(dirname $@)
 
-fs_fuzzer: $(LIBNYX_AGENT_BUILD)
-fs_fuzzer: src/fs_fuzzer.c
+$(TARGET): $(LIBNYX_AGENT_BUILD)
+$(TARGET): src/$(TARGET).c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS)
 
-fs_fuzzer.cpio.gz: fs_fuzzer ../vmcall/vmcall
+$(TARGET).cpio.gz: $(TARGET) ../vmcall/vmcall
 	../scripts/gen_initrd.sh $@ $^
 
-test: fs_fuzzer.cpio.gz fs_fuzzer seeds
-	# default kAFL config enables Linux serial console, see $$KAFL_WORK_DIR/serial_00.log
+test: $(TARGET).cpio.gz $(TARGET) seeds
+	@# default kAFL config enables Linux serial console, see $$KAFL_WORK_DIR/serial_00.log
 	kafl fuzz \
 		--kernel $(KERNEL_IMAGE) \
 		--initrd $< \
 		--memory 512 \
-		--sharedir $$PWD/sharedir/ \
+		--sharedir $(SHAREDIR) \
 		--seed-dir $$PWD/seeds/ \
-		-t 4 -ts 2 -tc -p 32 \
+		-t 4 -ts 2 -tc -p 2 \
 		--redqueen --grimoire --radamsa -D --funky \
 		--purge --log-hprintf
 
@@ -49,7 +51,7 @@ seeds:
 	mkfs.ext4 seeds/test_280.ext4 280
 
 clean:
-	rm -f fs_fuzzer fs_fuzzer.cpio.gz
+	rm -f $(TARGET) $(TARGET).cpio.gz
 	rm -rf seeds
 
 tags:
