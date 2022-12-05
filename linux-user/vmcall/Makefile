@@ -30,7 +30,7 @@ $(TARGET).cpio.gz: $(TARGET)
 	../scripts/gen_initrd.sh $@ $^
 
 run: $(TARGET).cpio.gz
-	@# default kAFL config enables Linux serial console, see $$KAFL_WORK_DIR/serial_00.log
+	@# default kAFL config enables Linux serial console, see $$KAFL_WORKDIR/serial_00.log
 	kafl fuzz \
 		--kernel $(KERNEL_IMAGE) \
 		--initrd $< \
@@ -53,9 +53,9 @@ test:
 	@cd testshare && md5sum test_*bin > test_md5sums
 	@cp test_agent.sh testshare/agent.sh
 	SHAREDIR=$$PWD/testshare $(MAKE) run
-	@cp testshare/test_md5sums $(KAFL_WORK_DIR)/dump/test_md5sums
-	@cd $(KAFL_WORK_DIR)/dump/ && md5sum -c test_md5sums || echo "hpush/hget fail!"
-	@test $$(grep -c foobar $(KAFL_WORK_DIR)/dump/foo) -eq 3 || echo "hcat fail!"
+	@cp testshare/test_md5sums $(KAFL_WORKDIR)/dump/test_md5sums
+	@cd $(KAFL_WORKDIR)/dump/ && md5sum -c test_md5sums || echo "hpush/hget fail!"
+	@test $$(grep -c foobar $(KAFL_WORKDIR)/dump/foo) -eq 3 || echo "hcat fail!"
 
 clean:
 	rm -f $(TARGET) $(TARGET).cpio.gz

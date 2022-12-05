@@ -33,7 +33,7 @@ $(TARGET).cpio.gz: $(TARGET) ../vmcall/vmcall
 	../scripts/gen_initrd.sh $@ $^
 
 test: $(TARGET).cpio.gz $(TARGET) seeds
-	@# default kAFL config enables Linux serial console, see $$KAFL_WORK_DIR/serial_00.log
+	@# default kAFL config enables Linux serial console, see $$KAFL_WORKDIR/serial_00.log
 	kafl fuzz \
 		--kernel $(KERNEL_IMAGE) \
 		--initrd $< \

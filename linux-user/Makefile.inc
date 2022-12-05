@@ -4,8 +4,8 @@ ifeq ($(EXAMPLES_ROOT),)
 $(error $$EXAMPLES_ROOT is not set - did you activate kAFL env?)
 endif
 
-ifeq ($(KAFL_WORK_DIR),)
-$(error $$KAFL_WORK_DIR is not set - did you activate kAFL env?)
+ifeq ($(KAFL_WORKDIR),)
+$(error $$KAFL_WORKDIR is not set - did you activate kAFL env?)
 endif
 
 NYX_INCLUDE_PATH ?= $(EXAMPLES_ROOT)
