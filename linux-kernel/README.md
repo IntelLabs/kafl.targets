@@ -49,7 +49,7 @@ launching the fuzzer is as simple as booting the kernel:
 
 ```
 export KAFL_CONFIG_FILE=kafl_config.yaml
-kafl_fuzz.py  --purge -w /dev/shm/kafl \
+kafl fuzz  --purge -w /dev/shm/kafl \
 	--redqueen --grimoire -D --radamsa
 	--kernel linux-guest/arch/x86/boot/bzImage
 	-t 0.1 -ts 0.01 -m 512 --log-crashes -p 2
@@ -129,7 +129,7 @@ Be sure to read other documentation to understand the various options and
 interpreting fuzzer output. Some hints (run in separate terminal):
 
 ```
-kafl_gui.py $KAFL_WORKDIR
+kafl gui [-w $KAFL_WORKDIR]
 ```
 
 ```
@@ -137,16 +137,51 @@ ls $KAFL_WORKDIR/corpus/
 ls $KAFL_WORKDIR/logs/
 ```
 
-For coverage reports, find out what PT filter ranges are used for the kernel image (they are auto-detected on startup and logged using `kafl_hprintf()` - try to launch with `--log-hprintf -p 1` instead of the above `--log-crashes` and look at `$workdir/hprintf_00.log`). Then use `kafl_cov.py` with `--resume` and same workdir + input directory. This will restore the VM snapshot and use the existing page_cache info to replay corpus payloads as faithfully as possible and dump PT trace info to `$workdir/traces/*bin.lz4`. The tool will also call `ptdump` on each trace to directly decode it to `$workdir/traces/*.txt.lz4`. For big corpuses, you can parallelize this process using `-p`. Example:
+For coverage reports, we first need to find out what PT filter ranges are used
+during kernel tracing. In this example, the PT filter ranges are auto-detected
+during kernel boot and logged using `kafl_hprintf()`. Launching the fuzzer with
+`--log-hprintf -p 1` instead of the above `--log-crashes` will produce a hprintf
+log in `$KAFL_WORKDIR/hprintf_00.log`.  Once you found the IP ranges, you can
+launch the `kafl cov` tool with same VM guest config and PT filter ranges:
 
-```
-KAFL_CONFIG_FILE=kafl_config.yaml kafl_cov.py \
-	-w /dev/shm/kafl --input /dev/shm/kafl \
+KAFL_CONFIG_FILE=kafl_config.yaml kafl cov \
+	--resume --work-dir $KAFL_WORKDIR \
+	--input $KAFL_WORKDIR \
 	--kernel source/arch/x86/boot/bzImage \
 	-ip0 ffffffff81000000-ffffffff83603000 \
 	-ip1 ffffffff855ed000-ffffffff856e4000 \
-	--resume -m 512 -t 2 -p 4
+	-m 512 -t 2 -p 4
+
+This will launch new VM instances and re-run the file or workdir corpus provided
+via the `--input` argument. Using the same existing workdir folder in
+combination with `--resume` will reload the guest state directly from the Nyx
+fast-snapshot used during fuzzing, leading to better reproducibility.
+
+For best results, it is recommended to collect binary PT traces already during
+fuzzing (using `kafl fuzz --trace` option). The `kafl cov` tool will detect the
+existing binary trace files and skip re-exeucting the corpus. We still need to
+PT filter range but can skip actual re-execution of the corpus, providing
+accurate coverage traces even for non-deterministic targets.
+
+same workdir + input directory. This will restore the VM snapshot and use the
+existing page_cache info to replay corpus payloads as faithfully as possible and
+dump PT trace info to `$workdir/traces/*bin.lz4`. The tool will also call
+`ptdump` on each trace to directly decode it to `$workdir/traces/*.txt.lz4`. For
+big corpuses, you can parallelize this process using `-p`. Example:
+
 ```
+KAFL_CONFIG_FILE=kafl_config.yaml kafl cov \
+	--input $KAFL_WORKDIR \
+	--kernel source/arch/x86/boot/bzImage \
+	-ip0 ffffffff81000000-ffffffff83603000 \
+	-ip1 ffffffff855ed000-ffffffff856e4000 \
+	--resume -m 512 -t 2 -p 16
+```
+
+Note that timeout and VM settings are not relevant here anymore, but the tool will
+complain about invalid/missing options. Based on the binary PT dumps,
+IP ranges and the code image retained in $workdir/page_cache, this simply uses the
+libxdc `ptdump` decoder to decode `$workdir/traces/*bin.lz4` to `$workdir/traces/*.txt.lz4`.
 
 ## 5) Known Issues
 
@@ -158,9 +193,11 @@ fuzzing virtio-net initialization may be a no-op if previously performed PCI
 scan did not detect any virtio-net devies. It helps to enable virtio-net in
 Qemu.
 
-2) *libxdc_decode_error* - This mainly seems to happen on dynamic code rewrite.
-Linux does this in several places, for instance due to paravirtualization,
-dynamic ftrace, jump label etc.
+2) *libxdc_decode_error* - This mainly happens on invalid or missing PT filter
+settings.  Alternatively, decoding PT traces can fail with new/unsupported
+instructions (check libcapstone for updates) or in case of dynamic code rewrite.
+The provided example kernel has minor patches/options set to avoid dynamic code
+rewrite (see Linux 'alternative instructions', dynamic ftrace, jump label etc.)
 
 3) *qemu-system-x86_64: assertion error xyz* - Especially during virtio fuzzing,
 the guest may do unexpected things to the host virtio emulation that can cause
