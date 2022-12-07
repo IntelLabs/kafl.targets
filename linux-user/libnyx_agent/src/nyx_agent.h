@@ -52,3 +52,4 @@ int hpush_file(char *src_path, char *dst_name, int append);
 int check_host_magic(int verbose);
 void habort_msg(const char *msg);
 void hrange_submit(unsigned id, uintptr_t start, uintptr_t end);
+int nyx_agent_init(int verbose);

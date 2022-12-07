@@ -37,4 +37,5 @@ mkdir -p /tmp
 cd /fuzz
 #/fuzz/execserver vmcall hcat /proc/cpuinfo
 #/fuzz/execserver ./syz-stress -procs 1 -output -syscalls ioctl,open,openat 2>&1 |vmcall hcat
-/fuzz/execserver -n 10 ./syz-stress -procs 1 -syscalls ioctl,open,openat 2>&1 |vmcall hcat
+#/fuzz/execserver -n 10 ./syz-stress -procs 1 -syscalls ioctl,open,openat 2>&1 |vmcall hcat
+./syz-stress -debug -logprog -procs 1 -syscalls ioctl,open,openat 2>&1 |vmcall hcat

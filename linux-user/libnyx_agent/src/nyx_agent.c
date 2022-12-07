@@ -323,3 +323,40 @@ int check_host_magic(int verbose)
 	}
 	return 0;
 }
+
+int nyx_agent_init(int verbose)
+{
+	get_nyx_cpu_type();
+
+	check_host_magic(1);
+
+	//if (host_config.payload_buffer_size > PAYLOAD_MAX_SIZE) {
+	//	hprintf("Fuzzer payload size too large: %lu > %lu\n",
+	//	        host_config.payload_buffer_size,
+	//	        PAYLOAD_MAX_SIZE);
+	//	habort("Host payload size too large!");
+	//	return -1;
+	//}
+
+	static agent_config_t agent_config __attribute__((aligned(PAGE_SIZE)));
+	memset(&agent_config, 0, sizeof(agent_config));
+	agent_config.agent_magic = NYX_AGENT_MAGIC;
+	agent_config.agent_version = NYX_AGENT_VERSION;
+	agent_config.agent_timeout_detection = 0;              // timeout by host
+	agent_config.agent_tracing = 0;                        // trace by host
+	agent_config.agent_ijon_tracing = 0;                   // no IJON
+	agent_config.agent_non_reload_mode = 1;                // allow persistent?
+	agent_config.trace_buffer_vaddr = 0xdeadbeef;
+	agent_config.ijon_trace_buffer_vaddr = 0xdeadbeef;
+	//agent_config.coverage_bitmap_size = host_config.bitmap_size;
+	//agent_config.input_buffer_size;
+	//agent_config.dump_payloads; // set by hypervisor (??)
+
+	kAFL_hypercall(HYPERCALL_KAFL_SET_AGENT_CONFIG, (uintptr_t)&agent_config);
+
+	// set ready state
+	kAFL_hypercall(HYPERCALL_KAFL_ACQUIRE, 0);
+	kAFL_hypercall(HYPERCALL_KAFL_RELEASE, 0);
+
+	return 0;
+}
