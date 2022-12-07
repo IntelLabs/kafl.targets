@@ -26,7 +26,6 @@ IP1_END=$(get_upper_range "t\ _einittext")
 vmcall hrange 0,$IP0_START-$IP0_END 1,$IP1_START-$IP1_END
 
 # launch target
-vmcall hget -x -o /fuzz execserver
 #vmcall hget -x -o /fuzz syz-stress
 vmcall hget -x -o /fuzz syz-executor
 
@@ -35,7 +34,8 @@ export ASAN_OPTIONS=detect_leaks=0:allocator_may_return_null=1:exitcode=101
 
 mkdir -p /tmp
 cd /fuzz
-#/fuzz/execserver vmcall hcat /proc/cpuinfo
-#/fuzz/execserver ./syz-stress -procs 1 -output -syscalls ioctl,open,openat 2>&1 |vmcall hcat
-#/fuzz/execserver -n 10 ./syz-stress -procs 1 -syscalls ioctl,open,openat 2>&1 |vmcall hcat
-./syz-stress -debug -logprog -procs 1 -syscalls ioctl,open,openat 2>&1 |vmcall hcat
+# -logprog: print programs before execution
+# -debug: debug output from executor
+# -procs int: number of parallel processes (default 144)
+# -syscalls string: comma-separated list of enabled syscalls
+./syz-stress -procs 1 -syscalls ioctl,open,openat 2>&1 |vmcall hcat

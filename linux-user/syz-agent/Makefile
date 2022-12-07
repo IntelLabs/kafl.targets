@@ -14,20 +14,16 @@ TARGET=syz-agent
 $(TARGET).cpio.gz: ../vmcall/vmcall syzkaller/bin/linux_amd64/syz-stress
 	../scripts/gen_initrd.sh $@ $^
 
-../execserver/execserver:
-	$(MAKE) -C ../execserver
-
 test: $(TARGET).cpio.gz sharedir
 	# default kAFL config enables Linux serial console, see $$WORKDIR/serial_00.log
 	kafl fuzz \
 		--kernel $(KERNEL_IMAGE) \
 		--initrd $< \
-		--memory 512 \
+		--memory 1024 \
 		--sharedir $$PWD/sharedir \
-		--purge -t 6 -ts 4 --log-hprintf
+		--purge --log -t 4 -ts 2 --log-hprintf -p 4
 
 sharedir: ../vmcall/vmcall
-sharedir: ../execserver/execserver
 #sharedir: syzkaller/bin/linux_amd64/syz-stress
 sharedir: syzkaller/bin/linux_amd64/syz-executor
 sharedir:

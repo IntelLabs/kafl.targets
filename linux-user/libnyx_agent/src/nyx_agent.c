@@ -328,7 +328,7 @@ int nyx_agent_init(int verbose)
 {
 	get_nyx_cpu_type();
 
-	check_host_magic(1);
+	check_host_magic(verbose);
 
 	//if (host_config.payload_buffer_size > PAYLOAD_MAX_SIZE) {
 	//	hprintf("Fuzzer payload size too large: %lu > %lu\n",
@@ -345,7 +345,7 @@ int nyx_agent_init(int verbose)
 	agent_config.agent_timeout_detection = 0;              // timeout by host
 	agent_config.agent_tracing = 0;                        // trace by host
 	agent_config.agent_ijon_tracing = 0;                   // no IJON
-	agent_config.agent_non_reload_mode = 1;                // allow persistent?
+	agent_config.agent_non_reload_mode = 0;                // allow persistent?
 	agent_config.trace_buffer_vaddr = 0xdeadbeef;
 	agent_config.ijon_trace_buffer_vaddr = 0xdeadbeef;
 	//agent_config.coverage_bitmap_size = host_config.bitmap_size;

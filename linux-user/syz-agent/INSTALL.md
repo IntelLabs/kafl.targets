@@ -36,7 +36,7 @@ Syzkaller for Linux setup: https://github.com/google/syzkaller/blob/master/docs/
 
 ```
 git clone -b kafl-agent https://github.com/il-steffen/syzkaller.git
-MAKEFLAGS="" make -C syzkaller
+MAKEFLAGS="" make -C syzkaller stress
 ```
 
 Confirm build:
@@ -45,10 +45,24 @@ Confirm build:
 cd syzkaller/bin/linux_amd64
 ldd syz-stress syz-executor
 > syz-stress:
->         not a dynamic executable
+>         linux-vdso.so.1 (0x00007ffe02f60000)
+>         libpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007f429406b000)
+>         libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f4293e79000)
+>         /lib64/ld-linux-x86-64.so.2 (0x00007f42940a6000)
 > syz-executor:
 >         statically linked
 ```
 
 
-## Build kAFL Agent + initrd
+## Build kAFL Agent + initrd, launch fuzzer
+
+```
+make test
+```
+
+Use kernel at ../linux-kernel/ for easy capturing kernel log + crash events:
+
+```
+KERNEL_IMAGE=/path/to/bzImage make test
+```
+
