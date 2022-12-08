@@ -22,9 +22,10 @@ build: $(KERNEL_TREE) $(KERNEL_CONFIG)
 
 fuzz: $(KERNEL_IMAGE)
 	KAFL_CONFIG_FILE=kafl_config.yaml \
-	kafl fuzz --purge -p 2 \
+	kafl fuzz --purge -p 4 \
 		--kernel $(KERNEL_IMAGE) \
 		--memory 1024 \
+		-t 0.1 -ts 0.01 \
 		--log --log-crashes
 
 plot:
@@ -33,10 +34,10 @@ plot:
 test:
 	# basic smoke test. build, run, and check that we found some crashes
 	$(MAKE) build
-	$(MAKE) fuzz KAFL_ABORT_EXEC=2000 KAFL_ABORT_TIME=0.1
+	$(MAKE) fuzz KAFL_ABORT_EXEC=20000 KAFL_ABORT_TIME=0.1
 	$(MAKE) plot |tee plot.txt
-	test $$(grep -c exit=C plot.txt) -gt 10
-	test $$(grep -c exit=C plot.txt) -le $$(ls $$KAFL_WORKDIR/logs/crash_*|wc -l)
+	test $$(grep -c exit=R plot.txt) -gt 100
+	test $$(grep -c exit=K plot.txt) -le $$(ls $$KAFL_WORKDIR/logs/kasan_*|wc -l)
 
 
 .PHONY: tags test clean plot gui 
