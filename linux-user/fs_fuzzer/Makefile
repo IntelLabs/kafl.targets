@@ -34,7 +34,8 @@ $(TARGET).cpio.gz: $(TARGET) ../vmcall/vmcall
 
 test: $(TARGET).cpio.gz $(TARGET) seeds
 	@# default kAFL config enables Linux serial console, see $$KAFL_WORKDIR/serial_00.log
-	kafl fuzz \
+	kafl_fuzz.py \
+		--work-dir $$KAFL_WORKDIR \
 		--kernel $(KERNEL_IMAGE) \
 		--initrd $< \
 		--memory 512 \

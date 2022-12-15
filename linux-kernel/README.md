@@ -49,7 +49,7 @@ launching the fuzzer is as simple as booting the kernel:
 
 ```
 export KAFL_CONFIG_FILE=kafl_config.yaml
-kafl fuzz  --purge -w /dev/shm/kafl \
+kafl_fuzz.py  --purge -w /dev/shm/kafl \
 	--redqueen --grimoire -D --radamsa
 	--kernel linux-guest/arch/x86/boot/bzImage
 	-t 0.1 -ts 0.01 -m 512 --log-crashes -p 2
@@ -144,7 +144,7 @@ during kernel boot and logged using `kafl_hprintf()`. Launching the fuzzer with
 log in `$KAFL_WORKDIR/hprintf_00.log`.  Once you found the IP ranges, you can
 launch the `kafl cov` tool with same VM guest config and PT filter ranges:
 
-KAFL_CONFIG_FILE=kafl_config.yaml kafl cov \
+KAFL_CONFIG_FILE=kafl_config.yaml kafl_cov.py \
 	--resume --work-dir $KAFL_WORKDIR \
 	--input $KAFL_WORKDIR \
 	--kernel source/arch/x86/boot/bzImage \
@@ -170,7 +170,7 @@ dump PT trace info to `$workdir/traces/*bin.lz4`. The tool will also call
 big corpuses, you can parallelize this process using `-p`. Example:
 
 ```
-KAFL_CONFIG_FILE=kafl_config.yaml kafl cov \
+KAFL_CONFIG_FILE=kafl_config.yaml kafl_cov.py \
 	--input $KAFL_WORKDIR \
 	--kernel source/arch/x86/boot/bzImage \
 	-ip0 ffffffff81000000-ffffffff83603000 \

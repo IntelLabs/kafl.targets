@@ -22,14 +22,14 @@ build: $(KERNEL_TREE) $(KERNEL_CONFIG)
 
 fuzz: $(KERNEL_IMAGE)
 	KAFL_CONFIG_FILE=kafl_config.yaml \
-	kafl fuzz --purge -p 4 \
+	kafl_fuzz.py --work-dir $$KAFL_WORKDIR --purge -p 4 \
 		--kernel $(KERNEL_IMAGE) \
 		--memory 1024 \
 		-t 0.1 -ts 0.01 \
 		--log --log-crashes
 
 plot:
-	kafl plot
+	kafl_plot.py $$KAFL_WORKDIR
 
 test:
 	# basic smoke test. build, run, and check that we found some crashes
