@@ -144,6 +144,7 @@ during kernel boot and logged using `kafl_hprintf()`. Launching the fuzzer with
 log in `$KAFL_WORKDIR/hprintf_00.log`.  Once you found the IP ranges, you can
 launch the `kafl cov` tool with same VM guest config and PT filter ranges:
 
+```
 KAFL_CONFIG_FILE=kafl_config.yaml kafl cov \
 	--resume --work-dir $KAFL_WORKDIR \
 	--input $KAFL_WORKDIR \
@@ -151,23 +152,23 @@ KAFL_CONFIG_FILE=kafl_config.yaml kafl cov \
 	-ip0 ffffffff81000000-ffffffff83603000 \
 	-ip1 ffffffff855ed000-ffffffff856e4000 \
 	-m 512 -t 2 -p 4
+```
 
 This will launch new VM instances and re-run the file or workdir corpus provided
 via the `--input` argument. Using the same existing workdir folder in
 combination with `--resume` will reload the guest state directly from the Nyx
-fast-snapshot used during fuzzing, leading to better reproducibility.
+fast-snapshot used during fuzzing and re-use the existing `$workdir/page_cache*` files,
+leading to better reproducibility. PT traces produced by Qemu/worker instances are
+picked up from `$workdir/pt_trace_dump_NN` and stored at `$workdir/traces/*bin.lz4`.
+The `kafl cov` tool then calls `ptdump` with the given PT filter range and
+`page_cache` files to decode to a corresponding text file `$workdir/traces/*.txt.lz4`.
 
 For best results, it is recommended to collect binary PT traces already during
 fuzzing (using `kafl fuzz --trace` option). The `kafl cov` tool will detect the
-existing binary trace files and skip re-exeucting the corpus. We still need to
-PT filter range but can skip actual re-execution of the corpus, providing
-accurate coverage traces even for non-deterministic targets.
+existing binary traces in `$workdir/traces/` and skip re-exeucting the corpus,
+providing accurate coverage traces even for non-deterministic targets.
 
-same workdir + input directory. This will restore the VM snapshot and use the
-existing page_cache info to replay corpus payloads as faithfully as possible and
-dump PT trace info to `$workdir/traces/*bin.lz4`. The tool will also call
-`ptdump` on each trace to directly decode it to `$workdir/traces/*.txt.lz4`. For
-big corpuses, you can parallelize this process using `-p`. Example:
+For big corpuses, you can parallelize this process using `-p`:
 
 ```
 KAFL_CONFIG_FILE=kafl_config.yaml kafl cov \
@@ -175,13 +176,13 @@ KAFL_CONFIG_FILE=kafl_config.yaml kafl cov \
 	--kernel source/arch/x86/boot/bzImage \
 	-ip0 ffffffff81000000-ffffffff83603000 \
 	-ip1 ffffffff855ed000-ffffffff856e4000 \
-	--resume -m 512 -t 2 -p 16
+	--resume -m 512 -t 2 -p 24
 ```
 
 Note that timeout and VM settings are not relevant here anymore, but the tool will
 complain about invalid/missing options. Based on the binary PT dumps,
 IP ranges and the code image retained in $workdir/page_cache, this simply uses the
-libxdc `ptdump` decoder to decode `$workdir/traces/*bin.lz4` to `$workdir/traces/*.txt.lz4`.
+libxdc `ptdump` to decode `$workdir/traces/*bin.lz4` to `$workdir/traces/*.txt.lz4`.
 
 ## 5) Known Issues
 
