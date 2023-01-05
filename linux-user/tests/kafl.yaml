@@ -1,4 +1,5 @@
 # override qemu configuration
 qemu_append: nokaslr oops=panic nopti mitigations=off console=ttyS0 hprintf=7
-qemu_base: -M kAFL64-v1 -cpu kAFL64-Hypervisor-v1 -enable-kvm -no-reboot -net none -display none
+#qemu_base: -M kAFL64-v1 -cpu kAFL64-Hypervisor-v1 -enable-kvm -no-reboot -net none -display none
+qemu_base: -M q35,max-ram-below-4g=2G -cpu kAFL64-Hypervisor-v1 -enable-kvm -no-reboot -net none -display none
 qemu_extra:

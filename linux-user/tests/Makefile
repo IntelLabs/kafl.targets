@@ -37,7 +37,7 @@ test: initrd.cpio.gz $(TARGET)
 	kafl fuzz \
 		--kernel $(KERNEL_IMAGE) \
 		--initrd $< \
-		--memory 3583 \
+		--memory 4096 \
 		--sharedir $(SHAREDIR) \
 		--purge -t 4 --debug --log
 
