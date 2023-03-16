@@ -121,7 +121,7 @@ function fuzz() {
 
 	echo "IP filter range: $ip_start-0x$ip_end"
 
-	kafl_fuzz.py \
+	kafl fuzz \
 		-ip0 ${ip_start}-0x${ip_end} \
 		--kernel ${BIN} \
 		--memory 32 \
@@ -151,7 +151,7 @@ function cov()
 
 
 	# Note: -ip0 and other VM settings should match those used during fuzzing
-	kafl_cov.py \
+	kafl cov \
 		-v -ip0 ${ip_start}-0x${ip_end} \
 		--kernel ${BIN} \
 		--memory 32 \
@@ -174,7 +174,7 @@ function gdb()
 
 
 	# Note: -ip0 and other VM settings should match those used during fuzzing
-	kafl_debug.py --action gdb --purge -v \
+	kafl debug --action gdb --purge -v \
 		--kernel ${BIN} \
 		--memory 32 \
 		--work-dir $TEMPDIR \
@@ -202,7 +202,7 @@ function noise()
 
 
 	# Note: -ip0 and other VM settings should match those used during fuzzing
-	kafl_debug.py --action noise --purge \
+	kafl debug --action noise --purge \
 		-v -ip0 ${ip_start}-0x${ip_end} \
 		--kernel ${BIN} \
 		--memory 32 \
