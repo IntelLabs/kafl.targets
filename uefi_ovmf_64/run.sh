@@ -138,7 +138,7 @@ function fuzz()
 {
   # Note: -ip0 depends on your UEFI build and provided machine memory!
   # To debug qemu, append -D -d to qemu extra and you'll have qemu logs
-  kafl_fuzz.py --purge \
+  kafl fuzz --purge \
     --bios $TARGET_BIN \
     $TARGET_RANGE \
     --qemu-extra="-hda fat:rw:$SCRIPT_ROOT/fake_hda" \
@@ -157,7 +157,7 @@ function noise()
   sleep 1
 
   # Note: VM configuration and trace settings should match those used during fuzzing
-  kafl_debug.py --action noise --purge \
+  kafl debug --action noise --purge \
     --bios $TARGET_BIN \
     $TARGET_RANGE \
     --qemu-extra="-hda fat:rw:$SCRIPT_ROOT/fake_hda" \
@@ -175,7 +175,7 @@ function cov()
   sleep 1
 
   # Note: VM configuration and trace settings should match those used during fuzzing
-  kafl_cov.py --resume \
+  kafl cov --resume \
     --bios $TARGET_BIN \
     $TARGET_RANGE \
     --qemu-extra="-hda fat:rw:$SCRIPT_ROOT/fake_hda" \
