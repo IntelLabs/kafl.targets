@@ -1,0 +1,6 @@
+# virtualenv for Ansible
+venv/
+# packer build output
+output-windows/
+# packer vagrant post-processor output
+*.box
