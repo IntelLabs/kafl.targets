@@ -1,0 +1,27 @@
+- name: Setup target
+  hosts: all
+  vars:
+    vcvars_path: "{{ ansible_env['ProgramFiles(x86)'] }}\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Auxiliary\\Build\\vcvars64.bat"
+    source_path: "{{ ansible_env.USERPROFILE }}\\Desktop\\source"
+  tasks:
+    - name: Upload target binaries
+      win_copy:
+        src: bin/selffuzz_test.exe
+        dest: "{{ ansible_env.USERPROFILE }}\\Desktop"
+
+    - name: Setup target to run at user login
+      win_shortcut:
+        src: "{{ ansible_env.USERPROFILE }}\\Desktop\\selffuzz_test.exe"
+        dest: "{{ ansible_env.APPDATA }}\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\kafl_target.lnk"
+
+    # TODO: have compiler agnostic nyx_api.h library
+    # - name: Copy our source to the target
+    #   win_copy:
+    #     src: source
+    #     dest: "{{ ansible_env.USERPROFILE }}\\Desktop"
+
+    # - name: Compile self-fuzz test with MSVC
+    #   win_shell: "{{ vcvars_path | ansible.windows.quote }} && cl vuln_test.c"
+    #   args:
+    #     executable: cmd
+    #     chdir: "{{ source_path }}"

@@ -1,0 +1,4 @@
+# compiled binaries
+bin/
+# vagrant directory
+.vagrant/
