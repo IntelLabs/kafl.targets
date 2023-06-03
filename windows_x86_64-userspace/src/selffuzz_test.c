@@ -1,5 +1,7 @@
 #include <windows.h>
-#include "kafl_user.h"
+#include "nyx_api.h"
+
+#define PAYLOAD_SIZE 4096
 
 void fuzzme(uint8_t*, int);
 void end();
