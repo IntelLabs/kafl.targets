@@ -10,6 +10,8 @@ Vagrant.configure("2") do |config|
   # no need to guess
   config.vm.guest = :windows
 
+  # https://github.com/vagrant-libvirt/vagrant-libvirt/issues/1743
+  config.vagrant.plugins = {"vagrant-libvirt" => {"version" => "0.11.2"}}
   config.vm.provider :libvirt do |libvirt|
     libvirt.disk_bus = "ide"
     libvirt.nic_model_type = "e1000e"
