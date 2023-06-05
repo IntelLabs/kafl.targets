@@ -123,7 +123,6 @@ build {
     playbook_file = "playbook.yml"
     user = "${var.winrm_username}"
     use_proxy = false
-    keep_inventory_file = true
     extra_arguments = [
       "-e", "ansible_winrm_scheme=http",
       "-e", "ansible_proxy=${var.https_proxy}",
