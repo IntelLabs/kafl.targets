@@ -1,7 +1,7 @@
 #include <windows.h>
 #include "nyx_api.h"
 
-#define PAYLOAD_SIZE 4096
+#define PAYLOAD_SIZE 128 * 1024
 
 void fuzzme(uint8_t*, int);
 void end();
