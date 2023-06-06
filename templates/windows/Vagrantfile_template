@@ -1,4 +1,6 @@
 Vagrant.configure("2") do |config|
+  config.vagrant.plugins = ["vagrant-libvirt", "vagrant-host-shell"]
+
   # The Packer box we just added
   config.vm.box = "kafl_windows"
   # we use winrm

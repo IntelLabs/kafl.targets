@@ -15,4 +15,9 @@ Vagrant.configure("2") do |config|
         libvirt.cpus = 4
         libvirt.memory = 4096
     end
+
+    # workaround https://github.com/hashicorp/vagrant/issues/13193
+    config.vm.provision :host_shell do |host_shell|
+        host_shell.inline = 'source ../venv/bin/activate && ./setup_target.sh'
+    end
 end
