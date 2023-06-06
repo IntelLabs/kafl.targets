@@ -7,6 +7,9 @@ Vagrant.configure("2") do |config|
     # rsync doesn't work on WinRM
     config.vm.synced_folder ".", "/vagrant", disabled: true
     config.vm.provider :libvirt do |libvirt|
+        # the qcow will be owned by the user
+        # so kafl can use the VM's qcow as well
+        libvirt.uri = "qemu:///session"
         # spice is better than VNC (mouse handling)
         libvirt.graphics_type = "spice"
         libvirt.cpus = 4
