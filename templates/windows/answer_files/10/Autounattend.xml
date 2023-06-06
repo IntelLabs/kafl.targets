@@ -135,8 +135,8 @@
                     <RequiresUserInput>true</RequiresUserInput>
                 </SynchronousCommand>
                <SynchronousCommand wcm:action="add">
-                    <CommandLine>cmd.exe /c reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v AUOptions /t REG_DWORD /d 2 /f</CommandLine>
-                    <Description>Disable auto Windows Updates</Description>
+                    <CommandLine>cmd.exe /c reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v NoAutoUpdate /t REG_DWORD /d 1 /f</CommandLine>
+                    <Description>Disable Windows Updates</Description>
                     <Order>6</Order>
                     <RequiresUserInput>true</RequiresUserInput>
                 </SynchronousCommand>
