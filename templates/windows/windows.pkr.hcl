@@ -86,7 +86,7 @@ source "qemu" "windows" {
   communicator     = "winrm"
   cpus             = "${var.cpus}"
   disk_compression = true
-  disk_interface   = "ide"
+  disk_interface   = "virtio"
   disk_size        = "${var.disk_size}"
   floppy_files     = ["${var.autounattend}", "scripts/fixnetwork.ps1", "scripts/setup_winrm_public.bat"]
   format           = "qcow2"
@@ -97,9 +97,10 @@ source "qemu" "windows" {
   memory           = "${var.memory}"
   qemuargs         = [
     ["-usb"],
-    ["-device", "usb-tablet"]
+    ["-device", "usb-tablet"],
+    ["-cdrom", "./virtio-win.iso"]
   ]
-  net_device       = "rtl8139"
+  net_device       = "virtio-net"
   shutdown_command = "shutdown /s /t 10 /f /d p:4:1 /c \"Packer Shutdown\""
   skip_compaction  = false
   vm_name          = "${var.vm_name}.qcow2"
