@@ -14,8 +14,8 @@ static inline void panic(void){
 
 kAFL_payload* kafl_agent_init(void) {
     // initial fuzzer handshake
-	kAFL_hypercall(HYPERCALL_KAFL_ACQUIRE, 0);
-	kAFL_hypercall(HYPERCALL_KAFL_RELEASE, 0);
+    kAFL_hypercall(HYPERCALL_KAFL_ACQUIRE, 0);
+    kAFL_hypercall(HYPERCALL_KAFL_RELEASE, 0);
 
     // submit mode
     kAFL_hypercall(HYPERCALL_KAFL_USER_SUBMIT_MODE, KAFL_MODE_64);
@@ -29,27 +29,30 @@ kAFL_payload* kafl_agent_init(void) {
 
     // allocate buffer
     hprintf("[+] Allocating buffer for kAFL_payload struct\n");
-    kAFL_payload* payload_buffer = (kAFL_payload*)VirtualAlloc(0, PAYLOAD_SIZE, MEM_COMMIT, PAGE_READWRITE);
+    SYSTEM_INFO si = {0};
+    GetSystemInfo(&si);
+    SIZE_T buffer_size = 64 * si.dwPageSize;
+    kAFL_payload* payload_buffer = (kAFL_payload*)VirtualAlloc(0, buffer_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-    if (!VirtualLock(payload_buffer, PAYLOAD_SIZE)){
+    // ensure really present in resident pages
+    if (!VirtualLock(payload_buffer, buffer_size)){
         hprintf("[+] WARNING: Virtuallock failed on payload buffer %lp...\n", payload_buffer);
         kAFL_hypercall(HYPERCALL_KAFL_USER_ABORT, 0);
     }
 
-    // ensure really present in virtual memory (avoid uncessary pagefaults)
-    hprintf("[+] Memset kAFL_payload at address %lx (size %d)\n", (uint64_t) payload_buffer, PAYLOAD_SIZE);
-    memset(payload_buffer, 0xff, PAYLOAD_SIZE);
-
     // submit buffer
     hprintf("[+] Submitting buffer address to hypervisor...\n");
     kAFL_hypercall(HYPERCALL_KAFL_GET_PAYLOAD, (UINT64)payload_buffer);
+
+    // filters
+    kAFL_hypercall(HYPERCALL_KAFL_SUBMIT_CR3, 0);
 
     // submit agent config
     agent_config_t agent_config = {
         .agent_magic = NYX_AGENT_MAGIC,
         .agent_version = NYX_AGENT_VERSION,
     };
-	kAFL_hypercall(HYPERCALL_KAFL_SET_AGENT_CONFIG, (uintptr_t)&agent_config);
+    kAFL_hypercall(HYPERCALL_KAFL_SET_AGENT_CONFIG, (uintptr_t)&agent_config);
 
     return payload_buffer;
 }
