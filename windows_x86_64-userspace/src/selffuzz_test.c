@@ -29,15 +29,11 @@ kAFL_payload* kafl_agent_init(void) {
 
     // allocate buffer
     hprintf("[+] Allocating buffer for kAFL_payload struct\n");
-    SYSTEM_INFO si = {0};
-    GetSystemInfo(&si);
-    SIZE_T buffer_size = 64 * si.dwPageSize;
-    kAFL_payload* payload_buffer = (kAFL_payload*)VirtualAlloc(0, buffer_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    kAFL_payload* payload_buffer = (kAFL_payload*)VirtualAlloc(0, host_config.payload_buffer_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
     // ensure really present in resident pages
-    if (!VirtualLock(payload_buffer, buffer_size)){
-        hprintf("[+] WARNING: Virtuallock failed on payload buffer %lp...\n", payload_buffer);
-        kAFL_hypercall(HYPERCALL_KAFL_USER_ABORT, 0);
+    if (!VirtualLock(payload_buffer, host_config.payload_buffer_size)){
+        habort("[+] WARNING: Virtuallock failed to lock payload buffer\n");
     }
 
     // submit buffer
@@ -60,6 +56,9 @@ kAFL_payload* kafl_agent_init(void) {
 
 int main(int argc, char** argv){
     hprintf("[+] Starting... %s\n", argv[0]);
+
+    hprintf("[+] Creating snapshot...\n");
+    kAFL_hypercall(HYPERCALL_KAFL_LOCK, 0);
 
     kAFL_payload* payload_buffer = kafl_agent_init();
 
