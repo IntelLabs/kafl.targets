@@ -85,3 +85,14 @@
         cmd: vs_buildtools.exe --quiet --wait --norestart --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows10SDK.17763 --add Microsoft.VisualStudio.Component.VC.CoreIde
       args:
         chdir: "{{ ansible_facts['env']['TEMP'] }}"
+
+    - name: Download WDK 10.0.17763.0
+      win_get_url:
+        url: https://go.microsoft.com/fwlink/?linkid=2026156
+        dest: "{{ ansible_facts['env']['TEMP'] }}\\wdk_setup.exe"
+
+    - name: Install WDK
+      win_command:
+        cmd: wdk_setup.exe /q /norestart
+      args:
+        chdir: "{{ ansible_facts['env']['TEMP'] }}"
