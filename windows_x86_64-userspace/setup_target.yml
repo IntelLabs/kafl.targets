@@ -12,15 +12,58 @@
         target_harness: 'userspace'
       when: target_harness is undefined
 
+    - name: Upload binaries
+      win_copy:
+        src: bin
+        dest: "{{ dest_path }}"
+
     - name: Setup userspace harness target
       block:
-        - name: Upload sources
-          win_copy:
-            src: bin/userspace
-            dest: "{{ dest_path }}"
-
-        - name: Setup target to run at user login
+        - name: Setup userspace target to run at user login
           win_shortcut:
-            src: "{{ ansible_env.USERPROFILE }}\\Desktop\\selffuzz_test.exe"
+            src: "{{ ansible_env.USERPROFILE }}\\Desktop\\userspace\\selffuzz_test.exe"
             dest: "{{ ansible_env.APPDATA }}\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\kafl_target.lnk"
       when: target_harness == 'userspace'
+
+    - name: Setup driver harness target
+      block:
+        - name: Upload vuln driver
+          win_copy:
+            src: src/driver/driver.c
+            dest: "{{ dest_path }}"
+
+        # driver needs to be compiled by MSVC
+        - name: Write compile script
+          win_copy:
+            dest: "{{ dest_path }}\\compile.bat"
+            content: |
+              {{ vcvars_path | ansible.windows.quote }} && cl /c Driver.c /D _AMD64_ && link Driver.obj /out:vuln_driver.sys /subsystem:native /entry:DriverEntry {{ ntoskrnllib_path | ansible.windows.quote }}
+
+        - name: Compile driver with MSVC
+          win_command: "compile.bat"
+          args:
+            chdir: "{{ dest_path }}"
+          environment:
+            INCLUDE: "{{ wdk_include_km_path }}"
+            LIB: "{{ wdk_lib_path }}"
+
+        # win_service cannot create kernel level services
+        - name: Set service to start vuln_driver.sys at boot
+          win_command: "sc create vuln_driver binPath= {{ dest_path + '/vuln_driver.sys' | ansible.windows.quote }} type= kernel start= auto"
+          register: result
+          failed_when:
+            - result.rc != 0
+            - result.rc != 1073 # service already exists
+
+        - name: Set service to start vuln_test to trigger the driver
+          win_service:
+            name: vuln_driver_trigger
+            path: "{{ dest_path }}\\bin\\driver\\vuln_test.exe"
+            start_mode: auto
+            dependencies: ["vuln_driver"]
+
+        - name: ls
+          win_shell: Get-ChildItem -Recurse
+          args:
+            chdir: "{{ dest_path }}"
+      when: target_harness == 'driver'
