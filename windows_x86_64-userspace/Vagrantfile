@@ -1,3 +1,8 @@
+# set target to compile and setup in the guest
+# choices: ['userspace', 'driver']
+# default: userspace
+TARGET = ENV['TARGET_HARNESS'] || 'userspace'
+
 Vagrant.configure("2") do |config|
     # The Packer box we just added
     config.vm.box = "kafl_windows"
@@ -18,6 +23,6 @@ Vagrant.configure("2") do |config|
 
     # workaround https://github.com/hashicorp/vagrant/issues/13193
     config.vm.provision :host_shell do |host_shell|
-        host_shell.inline = 'source ../venv/bin/activate && ./setup_target.sh'
+        host_shell.inline = "source ../venv/bin/activate && ./setup_target.sh -e target_harness=#{TARGET}"
     end
 end
