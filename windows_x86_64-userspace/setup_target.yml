@@ -6,7 +6,7 @@
   tasks:
     - name: Upload target binaries
       win_copy:
-        src: bin/selffuzz_test.exe
+        src: bin/userspace/selffuzz_test.exe
         dest: "{{ ansible_env.USERPROFILE }}\\Desktop"
 
     - name: Setup target to run at user login
