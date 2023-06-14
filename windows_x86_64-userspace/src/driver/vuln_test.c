@@ -22,7 +22,7 @@ along with QEMU-PT.  If not, see <http://www.gnu.org/licenses/>.
 #include <windows.h>
 #include <stdio.h>
 #include <winternl.h>
-#include "../../../nyx_api.h"
+#include "nyx_api.h"
 #include <psapi.h>
 
 
@@ -32,6 +32,7 @@ along with QEMU-PT.  If not, see <http://www.gnu.org/licenses/>.
 
 #define PAYLOAD_MAX_SIZE (128*1024)
 
+#define DEVICE_NAME         L"\\Device\\testKafl"
 #define IOCTL_KAFL_INPUT    (ULONG) CTL_CODE(FILE_DEVICE_UNKNOWN, 0x800, METHOD_NEITHER, FILE_ANY_ACCESS)
 
 
@@ -210,13 +211,17 @@ void init_panic_handlers() {
 
 int main(int argc, char** argv)
 {
+    hprintf("vuln_test main\n");
     kAFL_payload* payload_buffer = (kAFL_payload*)VirtualAlloc(0, PAYLOAD_MAX_SIZE, MEM_COMMIT, PAGE_READWRITE);
+    hprintf("payload buffer done\n");
     //LPVOID payload_buffer = (LPVOID)VirtualAlloc(0, PAYLOAD_SIZE, MEM_COMMIT, PAGE_READWRITE);
     memset(payload_buffer, 0x0, PAYLOAD_MAX_SIZE);
+    hprintf("memset done\n");
 
     /* open vulnerable driver */
     HANDLE kafl_vuln_handle = NULL;
     BOOL status = -1;
+    hprintf("vuln_test: CreateFile\n");
     kafl_vuln_handle = CreateFile((LPCSTR)"\\\\.\\testKafl",
         GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -225,10 +230,11 @@ int main(int argc, char** argv)
         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
         NULL
     );
+    hprintf("vuln_test: CreateFile: Done\n");
 
     if (kafl_vuln_handle == INVALID_HANDLE_VALUE) {
-        printf("[-] KAFL test: Cannot get device handle: 0x%X\n", GetLastError());
-        ExitProcess(0);
+        hprintf("[-] KAFL test: Cannot get device handle: 0x%X\n", GetLastError());
+        habort("Cannot get device handle\n");
     }
 
     init_agent_handshake();
