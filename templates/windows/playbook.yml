@@ -1,5 +1,8 @@
 - name: Deploy
   hosts: default
+  vars:
+    vsix_installer: "{{ ansible_env['ProgramFiles'] }}\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\VSIXInstaller.exe"
+    wdk_vsix_dir: "{{ ansible_env['ProgramFiles(x86)'] }}\\Windows Kits\\10\\Vsix\\VS2022\\10.0.22621.0"
   tasks:
     # This should be set before running the win_inet_proxy module
     - name: Configure IE proxy settings to apply to all users
@@ -23,72 +26,66 @@
         source: ie
       when: ansible_proxy | length > 0
 
-    - name: Download OpenSSH server
+    - name: Disable uncessary services
+      win_service:
+        name: "{{ item }}"
+        state: stopped
+        start_mode: disabled
+      with_items:
+        - WSearch
+        - Spooler
+
+    - name: Disable OneDrive
+      win_regedit:
+        path: HKLM:\Software\Policies\Microsoft\Windows\OneDrive
+        name: DisableFileSyncNGSC
+        data: 1
+        type: dword
+        state: present
+
+    - name: Disable Cortana
+      win_regedit:
+        path: HKLM:\Software\Policies\Microsoft\Windows\Windows Search
+        name: AllowCortana
+        data: 0
+        type: dword
+        state: present
+
+    - name: Disable Defender
+      win_regedit:
+        path: HKLM:\SOFTWARE\Policies\Microsoft\Microsoft Defender
+        name: DisableAntiSpyware
+        data: 1
+        type: dword
+        state: present
+
+    - name: Download Visual Studio 2022 community installer
       win_get_url:
-        url: https://github.com/PowerShell/Win32-OpenSSH/releases/download/v9.2.2.0p1-Beta/OpenSSH-Win64-v9.2.2.0.msi
-        dest: "{{ ansible_facts['env']['TEMP'] }}\\openssh_server.msi"
+        url: https://aka.ms/vs/17/release/vs_Community.exe
+        dest: "{{ ansible_facts['env']['TEMP'] }}\\vs_community.exe"
 
-    - name: Install OpenSSH server
-      win_package:
-        path: "{{ ansible_facts['env']['TEMP'] }}\\openssh_server.msi"
-        product_id: '{DF612DC9-F0C5-420C-B297-6DF941EEB7FE}'
-        arguments: 'ADDLOCAL=Server'
-
-    - name: Open firewall for OpenSSH
-      win_shell: New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
-      args:
-        executable: powershell
-
-    - name: Create authorized_keys file
-      win_shell: "New-Item -ItemType File -Path {{ ansible_facts['env']['USERPROFILE'] }}\\.ssh\\authorized_keys -Force" 
-      args:
-        executable: powershell
-
-    - name: add Vagrant's insecure key in authorized_keys
-      win_get_url:
-        url: https://raw.githubusercontent.com/hashicorp/vagrant/master/keys/vagrant.pub
-        dest: "{{ ansible_facts['env']['USERPROFILE'] }}\\.ssh\\authorized_keys"
-
-    - name: Ensure sshd is setup to autostart
-      win_shell: Set-Service sshd -StartupType Automatic
-      args:
-        executable: powershell
-
-    - name: Download DotNet framework 4.6.2
-      win_get_url:
-        url: http://go.microsoft.com/fwlink/?linkid=780600
-        dest: "{{ ansible_facts['env']['TEMP'] }}\\dotnet.exe"
-
-    # auto install through Visual Studio raises "OS is not supported error"
-    # must do a manual install here
-    - name: Install DotNet framework 4.6.2
+    # https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-community?view=vs-2022&preserve-view=true
+    - name: Install Visual Studio community and compiler
       win_command:
-        cmd: dotnet.exe /q /norestart
-      args:
-        chdir: "{{ ansible_facts['env']['TEMP'] }}"
-      register: result
-      failed_when:
-        - result.rc != 0
-        - result.rc != 3010 # restart required
-
-    - name: Reboot
-      win_reboot:
-
-    - name: Download Visual Studio 2017 build tools installer
-      win_get_url:
-        url: https://aka.ms/vs/15/release/vs_buildtools.exe
-        dest: "{{ ansible_facts['env']['TEMP'] }}\\vs_buildtools.exe"
-
-    # https://learn.microsoft.com/fr-fr/previous-versions/visualstudio/visual-studio-2017/install/workload-component-id-vs-community?view=vs-2017&preserve-view=true
-    - name: Install Visual Studio compiler and SDK
-      win_command:
-        cmd: vs_buildtools.exe --quiet --wait --norestart --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows10SDK.17763 --add Microsoft.VisualStudio.Component.VC.CoreIde
+        # cmd: vs_community.exe --quiet --wait --norestart --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22000
+        cmd: vs_community.exe --quiet --wait --norestart --add Microsoft.VisualStudio.Workload.NativeDesktop --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64
       args:
         chdir: "{{ ansible_facts['env']['TEMP'] }}"
 
-    - name: Download WDK 10.0.17763.0
+    - name: Download latest SDK
       win_get_url:
-        url: https://go.microsoft.com/fwlink/?linkid=2026156
+        url: https://go.microsoft.com/fwlink/?linkid=2237387
+        dest: "{{ ansible_facts['env']['TEMP'] }}\\sdk_setup.exe"
+
+    - name: Install latest SDK
+      win_command:
+        cmd: sdk_setup.exe /q /norestart
+      args:
+        chdir: "{{ ansible_facts['env']['TEMP'] }}"
+
+    - name: Download latest WDK
+      win_get_url:
+        url: https://go.microsoft.com/fwlink/?linkid=2196230
         dest: "{{ ansible_facts['env']['TEMP'] }}\\wdk_setup.exe"
 
     - name: Install WDK
@@ -96,3 +93,12 @@
         cmd: wdk_setup.exe /q /norestart
       args:
         chdir: "{{ ansible_facts['env']['TEMP'] }}"
+
+    - name: install WDK VSIX extension
+      win_command:
+        cmd: "{{ vsix_installer | ansible.windows.quote }} /quiet /admin /logFile:C:\\wdk_vsix.log WDK.vsix"
+      args:
+        chdir: "{{ wdk_vsix_dir }}"
+
+    - name: Enable Testsigning
+      win_command: Bcdedit.exe -set TESTSIGNING ON
