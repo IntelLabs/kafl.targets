@@ -26,6 +26,18 @@
         source: ie
       when: ansible_proxy | length > 0
 
+    - name: Ensure Chocolatey installed from internal repo
+      win_chocolatey:
+        name: chocolatey
+        proxy_url: "{{ ansible_proxy }}"
+
+    - name: Set chocolatey proxy
+      win_chocolatey_config:
+        name: proxy
+        state: present
+        value: "{{ ansible_proxy }}"
+      when: ansible_proxy | length > 0
+
     - name: Disable uncessary services
       win_service:
         name: "{{ item }}"
