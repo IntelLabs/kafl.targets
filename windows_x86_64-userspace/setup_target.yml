@@ -37,18 +37,18 @@
           args:
             chdir: "{{ dest_path }}\\src\\kafl_vulnerable_driver"
 
-        # # win_service cannot create kernel level services
-        # - name: Set service to start vuln_driver.sys at boot
-        #   win_command: "sc create vuln_driver binPath= {{ dest_path + '/driver/vuln_driver.sys' | ansible.windows.quote }} type= kernel start= auto"
-        #   register: result
-        #   failed_when:
-        #     - result.rc != 0
-        #     - result.rc != 1073 # service already exists
+        # win_service cannot create kernel level services
+        - name: Set service to start vuln_driver.sys at boot
+          win_command: "sc create vuln_driver binPath= {{ dest_path + '/src/kafl_vulnerable_driver/x64/Debug/kAFL vulnerable driver/kAFLvulnerabledriver.sys' | ansible.windows.quote }} type= kernel start= auto"
+          register: result
+          failed_when:
+            - result.rc != 0
+            - result.rc != 1073 # service already exists
 
-        # - name: Set service to start vuln_test to trigger the driver
-        #   win_service:
-        #     name: vuln_driver_trigger
-        #     path: "{{ dest_path }}\\bin\\driver\\vuln_test.exe"
-        #     start_mode: auto
-        #     dependencies: ["vuln_driver"]
+        - name: Set service to start vuln_test to trigger the driver
+          win_service:
+            name: vuln_driver_trigger
+            path: "{{ dest_path }}\\bin\\driver\\vuln_test.exe"
+            start_mode: auto
+            dependencies: ["vuln_driver"]
       when: target_harness == 'driver'
