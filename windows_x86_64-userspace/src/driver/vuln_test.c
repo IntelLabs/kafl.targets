@@ -34,6 +34,7 @@ along with QEMU-PT.  If not, see <http://www.gnu.org/licenses/>.
 
 #define DEVICE_NAME         L"\\Device\\testKafl"
 #define IOCTL_KAFL_INPUT    (ULONG) CTL_CODE(FILE_DEVICE_UNKNOWN, 0x800, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define VULN_DRIVER_NAME "kAFLvulnerabledriver.sys"
 
 
 PCSTR ntoskrnl = "C:\\Windows\\System32\\ntoskrnl.exe";
@@ -157,19 +158,19 @@ void set_ip_range() {
 
    if( EnumDeviceDrivers(drivers, sizeof(drivers), &cbNeeded) && cbNeeded < sizeof(drivers))
    { 
-        TCHAR szDriver[ARRAY_SIZE];
-
         cDrivers = cbNeeded / sizeof(drivers[0]);
         PRTL_PROCESS_MODULES ModuleInfo;
  
         ModuleInfo=(PRTL_PROCESS_MODULES)VirtualAlloc(NULL,1024*1024,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
      
         if(!ModuleInfo){
+            habort("set_ip_range: VirtualAlloc failed\n");
             goto fail;
         }
      
         if(!NT_SUCCESS(status=NtQuerySystemInformation((SYSTEM_INFORMATION_CLASS)11,ModuleInfo,1024*1024,NULL))){
             VirtualFree(ModuleInfo,0,MEM_RELEASE);
+            habort("set_ip_range: NtQuerySystemInformation failed\n");
             goto fail;
         }
 
@@ -178,11 +179,12 @@ void set_ip_range() {
         pos += sprintf(info_buffer + pos, "START-ADDRESS\t\tEND-ADDRESS\t\tDRIVER\n");
         //_tprintf(TEXT("START-ADDRESS\t\tEND-ADDRESS\t\tDRIVER\n"));      
         for (i=0; i < cDrivers; i++ ){
-            pos += sprintf(info_buffer + pos, "0x%p\t0x%p\t%s\n", drivers[i], ((UINT64)drivers[i]) + ModuleInfo->Modules[i].ImageSize, ModuleInfo->Modules[i].FullPathName+ModuleInfo->Modules[i].OffsetToFileName);
-            if(strstr(ModuleInfo->Modules[i].FullPathName,"nyx_test") > 0 ) {
+            pos += sprintf(info_buffer + pos, "0x%p\t0x%lld\t%s\n", drivers[i], ((UINT64)drivers[i]) + ModuleInfo->Modules[i].ImageSize, ModuleInfo->Modules[i].FullPathName+ModuleInfo->Modules[i].OffsetToFileName);
+            // hprintf("%s: driver FullPathName: %s\n", __func__, ModuleInfo->Modules[i].FullPathName);
+            if(strstr((const char*)ModuleInfo->Modules[i].FullPathName, VULN_DRIVER_NAME) > 0 ) {
                 uint64_t buffer[3];
-                buffer[0] = drivers[i];
-                buffer[1] = drivers[i] + ModuleInfo->Modules[i].ImageSize;
+                buffer[0] = (UINT64)drivers[i];
+                buffer[1] = (UINT64)drivers[i] + ModuleInfo->Modules[i].ImageSize;
                 buffer[2] = 0;
                 kAFL_hypercall(HYPERCALL_KAFL_RANGE_SUBMIT, (UINT64)buffer);
                 return;
@@ -191,10 +193,11 @@ void set_ip_range() {
         }
    }
    else {
+        hprintf("%s: EnumDeviceDrivers failed\n", __func__);
         goto fail;
    }
-   fail:
-        printf("FAIL! NO MATCH!\n");
+    fail:
+        habort("FAIL! NO MATCH!\n");
         exit(1);
 }
 
@@ -211,17 +214,12 @@ void init_panic_handlers() {
 
 int main(int argc, char** argv)
 {
-    hprintf("vuln_test main\n");
     kAFL_payload* payload_buffer = (kAFL_payload*)VirtualAlloc(0, PAYLOAD_MAX_SIZE, MEM_COMMIT, PAGE_READWRITE);
-    hprintf("payload buffer done\n");
     //LPVOID payload_buffer = (LPVOID)VirtualAlloc(0, PAYLOAD_SIZE, MEM_COMMIT, PAGE_READWRITE);
     memset(payload_buffer, 0x0, PAYLOAD_MAX_SIZE);
-    hprintf("memset done\n");
 
     /* open vulnerable driver */
     HANDLE kafl_vuln_handle = NULL;
-    BOOL status = -1;
-    hprintf("vuln_test: CreateFile\n");
     kafl_vuln_handle = CreateFile((LPCSTR)"\\\\.\\testKafl",
         GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -230,7 +228,6 @@ int main(int argc, char** argv)
         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
         NULL
     );
-    hprintf("vuln_test: CreateFile: Done\n");
 
     if (kafl_vuln_handle == INVALID_HANDLE_VALUE) {
         hprintf("[-] KAFL test: Cannot get device handle: 0x%X\n", GetLastError());
