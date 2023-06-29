@@ -85,7 +85,7 @@ source "qemu" "windows" {
   boot_wait        = "5s"
   communicator     = "winrm"
   cpus             = "${var.cpus}"
-  disk_compression = true
+  disk_compression = false
   disk_interface   = "virtio"
   disk_size        = "${var.disk_size}"
   floppy_files     = ["${var.autounattend}", "scripts/fixnetwork.ps1", "scripts/setup_winrm_public.bat"]
@@ -102,7 +102,7 @@ source "qemu" "windows" {
   ]
   net_device       = "virtio-net"
   shutdown_command = "shutdown /s /t 10 /f /d p:4:1 /c \"Packer Shutdown\""
-  skip_compaction  = false
+  skip_compaction  = true
   vm_name          = "${var.vm_name}.qcow2"
   vnc_bind_address = "0.0.0.0"
   winrm_password   = "${var.winrm_password}"
