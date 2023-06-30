@@ -93,7 +93,6 @@ source "qemu" "windows" {
   headless         = "${var.headless}"
   iso_checksum     = "${var.iso_checksum_type}:${var.iso_checksum}"
   iso_url          = "${var.iso_url}"
-  machine_type     = "q35"
   memory           = "${var.memory}"
   qemuargs         = [
     ["-usb"],
