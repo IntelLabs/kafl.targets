@@ -1,0 +1,6 @@
+# compiled binaries
+bin/
+# vagrant directory
+.vagrant/
+# kafl workdir if any
+workdir/

@@ -1,5 +1,7 @@
 #include <windows.h>
-#include "kafl_user.h"
+#include "nyx_api.h"
+
+#define PAYLOAD_SIZE 128 * 1024
 
 void fuzzme(uint8_t*, int);
 void end();
@@ -10,23 +12,55 @@ static inline void panic(void){
     while(1){}; /* halt */
 }
 
+kAFL_payload* kafl_agent_init(void) {
+    // initial fuzzer handshake
+    kAFL_hypercall(HYPERCALL_KAFL_ACQUIRE, 0);
+    kAFL_hypercall(HYPERCALL_KAFL_RELEASE, 0);
+
+    // submit mode
+    kAFL_hypercall(HYPERCALL_KAFL_USER_SUBMIT_MODE, KAFL_MODE_64);
+
+    // get host config
+    host_config_t host_config = {0};
+    kAFL_hypercall(HYPERCALL_KAFL_GET_HOST_CONFIG, (uintptr_t)&host_config);
+    hprintf("[host_config] bitmap sizes = <0x%x,0x%x>\n", host_config.bitmap_size, host_config.ijon_bitmap_size);
+	hprintf("[host_config] payload size = %dKB\n", host_config.payload_buffer_size/1024);
+	hprintf("[host_config] worker id = %02u\n", host_config.worker_id);
+
+    // allocate buffer
+    hprintf("[+] Allocating buffer for kAFL_payload struct\n");
+    kAFL_payload* payload_buffer = (kAFL_payload*)VirtualAlloc(0, host_config.payload_buffer_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+
+    // ensure really present in resident pages
+    if (!VirtualLock(payload_buffer, host_config.payload_buffer_size)){
+        habort("[+] WARNING: Virtuallock failed to lock payload buffer\n");
+    }
+
+    // submit buffer
+    hprintf("[+] Submitting buffer address to hypervisor...\n");
+    kAFL_hypercall(HYPERCALL_KAFL_GET_PAYLOAD, (UINT64)payload_buffer);
+
+    // filters
+    kAFL_hypercall(HYPERCALL_KAFL_SUBMIT_CR3, 0);
+
+    // submit agent config
+    agent_config_t agent_config = {
+        .agent_magic = NYX_AGENT_MAGIC,
+        .agent_version = NYX_AGENT_VERSION,
+    };
+    kAFL_hypercall(HYPERCALL_KAFL_SET_AGENT_CONFIG, (uintptr_t)&agent_config);
+
+    return payload_buffer;
+}
+
 
 int main(int argc, char** argv){
     hprintf("[+] Starting... %s\n", argv[0]);
 
-    hprintf("[+] Allocating buffer for kAFL_payload struct\n");
-    kAFL_payload* payload_buffer = (kAFL_payload*)VirtualAlloc(0, PAYLOAD_SIZE, MEM_COMMIT, PAGE_READWRITE);
+    hprintf("[+] Creating snapshot...\n");
+    kAFL_hypercall(HYPERCALL_KAFL_LOCK, 0);
 
-    if (!VirtualLock(payload_buffer, PAYLOAD_SIZE)){
-        hprintf("[+] WARNING: Virtuallock failed on payload buffer %lp...\n", payload_buffer);
-        kAFL_hypercall(HYPERCALL_KAFL_USER_ABORT, 0);
-    }
-
-    hprintf("[+] Memset kAFL_payload at address %lx (size %d)\n", (uint64_t) payload_buffer, PAYLOAD_SIZE);
-    memset(payload_buffer, 0xff, PAYLOAD_SIZE);
-
-    hprintf("[+] Submitting buffer address to hypervisor...\n");
-    kAFL_hypercall(HYPERCALL_KAFL_GET_PAYLOAD, (UINT64)payload_buffer);
+    kAFL_payload* payload_buffer = kafl_agent_init();
 
     kAFL_ranges* range_buffer = (kAFL_ranges*)VirtualAlloc(NULL, 0x1000, MEM_COMMIT, PAGE_READWRITE);
     memset(range_buffer, 0xff, 0x1000);
@@ -48,15 +82,12 @@ int main(int argc, char** argv){
         }
     }
 
-    kAFL_hypercall(HYPERCALL_KAFL_USER_SUBMIT_MODE, KAFL_MODE_64);
-
     hprintf("[+] Range: 0x%p-0x%p\n", fuzzme, end);
 
-    while(1){
-            kAFL_hypercall(HYPERCALL_KAFL_USER_FAST_ACQUIRE, 0);
-            fuzzme(payload_buffer->data, payload_buffer->size);
-            kAFL_hypercall(HYPERCALL_KAFL_RELEASE, 0);
-    }
+    kAFL_hypercall(HYPERCALL_KAFL_NEXT_PAYLOAD, 0);
+    kAFL_hypercall(HYPERCALL_KAFL_ACQUIRE, 0);
+    fuzzme(payload_buffer->data, payload_buffer->size);
+    kAFL_hypercall(HYPERCALL_KAFL_RELEASE, 0);
     return 0;
 }
 
@@ -89,4 +120,3 @@ void fuzzme(uint8_t* input, int size){
 };
 
 void end(){}
-

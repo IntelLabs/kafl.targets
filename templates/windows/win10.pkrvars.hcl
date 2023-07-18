@@ -1,0 +1,7 @@
+vm_name = "win10"
+cpus = "4"
+disk_size = "65536"
+iso_url = "https://go.microsoft.com/fwlink/p/?LinkID=2208844&clcid=0x409&culture=en-us&country=US"
+iso_checksum_type = "sha256"
+iso_checksum = "ef7312733a9f5d7d51cfa04ac497671995674ca5e1058d5164d6028f0938d668"
+autounattend = "answer_files/10/Autounattend.xml"
