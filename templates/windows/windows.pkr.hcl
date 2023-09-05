@@ -7,6 +7,24 @@
 # once they also need to be in the same folder. 'packer inspect folder/'
 # will describe to you what is in that folder.
 
+packer {
+  required_plugins {
+    qemu = {
+      source  = "github.com/hashicorp/qemu"
+      version = "~> 1"
+    }
+    ansible = {
+      source  = "github.com/hashicorp/ansible"
+      version = "~> 1"
+    }
+    vagrant = {
+      source  = "github.com/hashicorp/vagrant"
+      version = "~> 1"
+    }
+  }
+}
+
+
 # Avoid mixing go templating calls ( for example ```{{ upper(`string`) }}``` )
 # and HCL2 calls (for example '${ var.string_value_example }' ). They won't be
 # executed together and the outcome will be unknown.
