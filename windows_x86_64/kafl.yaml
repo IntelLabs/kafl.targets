@@ -1,5 +1,5 @@
 # null qemu_append
 qemu_append: ''
 qemu_memory: 4096
-qemu_image: '@format {env[HOME]}/.local/share/libvirt/images/windows_x86_64_vagrant-kafl-windows.img,if=virtio'
+qemu_image: '@format {env[HOME]}/.local/share/libvirt/images/windows_x86_64_vagrant-kafl-windows.img'
 qemu_extra: '-monitor unix:/tmp/monitor.sock,server,nowait'

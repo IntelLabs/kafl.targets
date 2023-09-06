@@ -4,5 +4,3 @@ venv/
 output-windows/
 # packer vagrant post-processor output
 *.box
-# virtio ISO
-virtio-win.iso
