@@ -10,6 +10,7 @@ $(ROOT_DIR)/venv/bin/ansible-playbook:
 ansible: $(ROOT_DIR)/venv/bin/ansible-playbook
 
 build: ansible virtio-win.iso
+	packer init windows.pkr.hcl
 	source $(ROOT_DIR)/venv/bin/activate && packer build -var-file win10.pkrvars.hcl windows.pkr.hcl
 
 import:
