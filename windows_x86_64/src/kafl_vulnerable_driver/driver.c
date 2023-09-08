@@ -22,15 +22,20 @@ NTSTATUS crashMe(IN PIO_STACK_LOCATION IrpStack){
     }
 
     if (userBuffer[0] == 'P'){
+        DbgPrint("[+] KAFL vuln drv -- P");
         if (userBuffer[1] == 'w'){
+            DbgPrint("[+] KAFL vuln drv -- Pw");
             if (userBuffer[2] == 'n'){
+                DbgPrint("[+] KAFL vuln drv -- Pwn");
                 if (userBuffer[3] == 'T'){
+                    DbgPrint("[+] KAFL vuln drv -- PwnT");
                     if (userBuffer[4] == 'o'){
+                        DbgPrint("[+] KAFL vuln drv -- PwnTo");
                         if (userBuffer[5] == 'w'){
+                            DbgPrint("[+] KAFL vuln drv -- PwnTow");
                             if (userBuffer[6] == 'n'){
-                            DbgPrint("[+] KAFL vuln drv -- SETEIP");
-                            /* hell yeah */
-                            ((VOID(*)())0x0)();
+                                DbgPrint("[+] KAFL vuln drv -- PwnTown: CRASH");
+                                ((VOID(*)())0x0)();
                             }
                         }
                     }
@@ -40,13 +45,13 @@ NTSTATUS crashMe(IN PIO_STACK_LOCATION IrpStack){
     }
 
     if (userBuffer[0] == 'w'){
-        DbgPrint("[+] KAFL vuln drv -- ONE");
+        DbgPrint("[+] KAFL vuln drv -- w");
         if (userBuffer[1] == '0'){
-            DbgPrint("[+] KAFL vuln drv -- TWO");
+            DbgPrint("[+] KAFL vuln drv -- w0");
             if (userBuffer[2] == '0'){
-                DbgPrint("[+] KAFL vuln drv -- THREE");
+                DbgPrint("[+] KAFL vuln drv -- w00");
                 if (userBuffer[3] == 't'){
-                    DbgPrint("[+] KAFL vuln drv -- CRASH");
+                    DbgPrint("[+] KAFL vuln drv -- w00t: CRASH");
                     size = *((PSIZE_T)(0x0));
                 }
             }
