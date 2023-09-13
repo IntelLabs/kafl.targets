@@ -9,13 +9,10 @@ $(ROOT_DIR)/venv/bin/ansible-playbook:
 
 ansible: $(ROOT_DIR)/venv/bin/ansible-playbook
 
-build: ansible virtio-win.iso
+build: ansible
 	packer init windows.pkr.hcl
 	source $(ROOT_DIR)/venv/bin/activate && packer build -var-file win10.pkrvars.hcl windows.pkr.hcl
 
 import:
 	vagrant box remove kafl_windows || true
 	vagrant box add packer_windows_libvirt.box --name kafl_windows
-
-virtio-win.iso:
-	wget 'https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso' -O virtio-win.iso
