@@ -39,14 +39,7 @@ function build_app() {
 	# select target app / variant
 	APP=$1; shift
 
-	pushd $SCRIPT_ROOT
-	test -d build && rm -rf build
-   	mkdir build || fail "Could not create build/ directory. Exit."
-	cd build
-	#cmake -GNinja -DBOARD=qemu_x86_64 -DKAFL_${APP}=y ..
-	cmake -GNinja -DBOARD=qemu_x86 -DKAFL_${APP}=y ..
-	ninja
-	popd
+	west build -p -b qemu_x86 $SCRIPT_ROOT -d ${SCRIPT_ROOT}/build -- -DKAFL_${APP}=y
 }
 
 function fuzz() {
