@@ -1,0 +1,4 @@
+[submodule "linux-user/dvkm/Damn_Vulnerable_Kernel_Module"]
+	path = linux-user/dvkm/Damn_Vulnerable_Kernel_Module
+	url = https://github.com/Wenzel/Damn_Vulnerable_Kernel_Module.git
+	branch = kafl
