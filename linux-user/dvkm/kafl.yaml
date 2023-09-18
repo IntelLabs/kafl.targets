@@ -2,7 +2,7 @@
 sharedir: '@format {env[PWD]}/sharedir'
 
 # additional kAFL configuration
-qemu_kernel: '@format {env[EXAMPLES_ROOT]}/linux-kernel/linux-guest/arch/x86/boot/bzImage'
+qemu_kernel: '@format {env[EXAMPLES_ROOT]}/linux-user/linux_kafl_agent/arch/x86/boot/bzImage'
 qemu_initrd: '@format {env[EXAMPLES_ROOT]}/linux-user/scripts/kafl_initrd.cpio.gz'
 
 # use hprintf=7 for full printk verbosity
