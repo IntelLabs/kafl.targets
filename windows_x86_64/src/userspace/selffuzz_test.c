@@ -57,9 +57,6 @@ kAFL_payload* kafl_agent_init(void) {
 int main(int argc, char** argv){
     hprintf("[+] Starting... %s\n", argv[0]);
 
-    hprintf("[+] Creating snapshot...\n");
-    kAFL_hypercall(HYPERCALL_KAFL_LOCK, 0);
-
     kAFL_payload* payload_buffer = kafl_agent_init();
 
     kAFL_ranges* range_buffer = (kAFL_ranges*)VirtualAlloc(NULL, 0x1000, MEM_COMMIT, PAGE_READWRITE);
