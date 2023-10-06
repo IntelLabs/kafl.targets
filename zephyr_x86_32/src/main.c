@@ -14,7 +14,7 @@
 #include <string.h>
 
 #define _GNU_SOURCE
-#include "../../nyx_api.h"
+#include <nyx_api.h>
 #include "target.h"
 
 #define PAYLOAD_MAX_SIZE (128*1024)
