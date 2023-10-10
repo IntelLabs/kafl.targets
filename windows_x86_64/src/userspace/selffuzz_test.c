@@ -2,6 +2,7 @@
 #include "nyx_api.h"
 
 #define PAYLOAD_SIZE 128 * 1024
+#define PE_CODE_SECTION_NAME ".text"
 
 void fuzzme(uint8_t*, int);
 void end();
@@ -10,6 +11,46 @@ void end();
 static inline void panic(void){
     kAFL_hypercall(HYPERCALL_KAFL_PANIC, (uintptr_t)0x1);
     while(1){}; /* halt */
+}
+
+void submit_ip_ranges() {
+    // Get the module handle for the current process.
+    HMODULE hModule = GetModuleHandle(NULL);
+    if (hModule == NULL) {
+        habort("Cannot get module handle\n");
+    }
+
+    // Get the PE header of the current module.
+    PIMAGE_NT_HEADERS pNtHeaders = (PIMAGE_NT_HEADERS)(
+        (PBYTE)hModule + ((PIMAGE_DOS_HEADER)hModule)->e_lfanew);
+    if (pNtHeaders->Signature != IMAGE_NT_SIGNATURE) {
+        habort("Invalid PE signature\n");
+    }
+
+    // Get the section headers.
+    PIMAGE_SECTION_HEADER pSectionHeaders = (PIMAGE_SECTION_HEADER)((PBYTE)pNtHeaders + 
+        sizeof(IMAGE_NT_HEADERS));
+    for (WORD i = 0; i < pNtHeaders->FileHeader.NumberOfSections; ++i) {
+        PIMAGE_SECTION_HEADER pSectionHeader = &pSectionHeaders[i];
+
+        // Check for the .text section
+        if (memcmp((LPVOID)pSectionHeader->Name, PE_CODE_SECTION_NAME, strlen(PE_CODE_SECTION_NAME)) == 0) {
+            DWORD_PTR codeStart = (DWORD_PTR)hModule + pSectionHeader->VirtualAddress;
+            DWORD_PTR codeEnd = codeStart + pSectionHeader->Misc.VirtualSize;
+
+            // submit them to kAFL
+            uint64_t buffer[3] = {0};
+            buffer[0] = codeStart; // low range
+            buffer[1] = codeEnd; // high range
+            buffer[2] = 0; // IP filter index [0-3]
+            kAFL_hypercall(HYPERCALL_KAFL_RANGE_SUBMIT, (uint64_t)buffer);
+            // ensure allways present in memory, avoid pagefaults for libxdc
+            if (!VirtualLock((LPVOID)codeStart, pSectionHeader->Misc.VirtualSize))
+                habort("Failed to lock .text section in resident memory\n");
+            return;
+        }
+    }
+    habort("Couldn't locate .text section in PE image\n");
 }
 
 kAFL_payload* kafl_agent_init(void) {
@@ -67,22 +108,8 @@ int main(int argc, char** argv){
 
     hprintf("[+] range buffer %lx...\n", (UINT64)range_buffer);
     kAFL_hypercall(HYPERCALL_KAFL_USER_RANGE_ADVISE, (UINT64)range_buffer);
- 
-    hprintf("[+] Locking fuzzing ranges...\n");
-    for(int i = 0; i < 4; i++){
-        hprintf("[+] Range %d enabled: %x\t(%p-%p)\n", i, (uint8_t)range_buffer->enabled[i], range_buffer->ip[i], range_buffer->size[i]);
-        if (range_buffer->ip[i] != 0){
-            if (!VirtualLock((LPVOID)range_buffer->ip[i], range_buffer->size[i])){
-                hprintf("[+] WARNING: VirtualLock failed on range %d...\n", (uint8_t)range_buffer->enabled[i]);
-                kAFL_hypercall(HYPERCALL_KAFL_USER_ABORT, 0);
-            }
-            else{
-                hprintf("[+] Range %d locked\n", (uint8_t)range_buffer->enabled[i]);
-            }
-        }
-    }
 
-    hprintf("[+] Range: 0x%p-0x%p\n", fuzzme, end);
+    submit_ip_ranges();
 
     kAFL_hypercall(HYPERCALL_KAFL_NEXT_PAYLOAD, 0);
     kAFL_hypercall(HYPERCALL_KAFL_ACQUIRE, 0);
@@ -117,6 +144,6 @@ void fuzzme(uint8_t* input, int size){
                                         panic();
 
     }
-};
+}
 
 void end(){}
