@@ -1,0 +1,9 @@
+# exposing host files through "sharedir" interface
+sharedir: '@format {env[PWD]}/sharedir'
+
+# additional kAFL configuration
+qemu_kernel: '@format {env[EXAMPLES_ROOT]}/linux-user/linux_kafl_agent/arch/x86/boot/bzImage'
+qemu_initrd: '@format {env[EXAMPLES_ROOT]}/linux-user/scripts/kafl_initrd.cpio.gz'
+
+# use hprintf=7 for full printk verbosity
+qemu_append: root=/dev/vda1 rw nokaslr oops=panic nopti mitigations=off console=ttyS0 earlyprintk=serial,ttyS0 ignore_loglevel

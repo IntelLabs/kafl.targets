@@ -1,0 +1,8 @@
+[submodule "linux-user/dvkm/Damn_Vulnerable_Kernel_Module"]
+	path = linux-user/dvkm/Damn_Vulnerable_Kernel_Module
+	url = https://github.com/Wenzel/Damn_Vulnerable_Kernel_Module.git
+	branch = kafl
+[submodule "linux-user/linux-kafl-agent"]
+	path = linux-user/linux_kafl_agent
+	url = https://github.com/IntelLabs/kafl.linux.git
+	branch = agent_tutorial
