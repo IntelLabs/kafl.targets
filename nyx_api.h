@@ -10,27 +10,34 @@
 #ifndef NYX_API_H
 #define NYX_API_H
 
-#include <stdarg.h>
-#include <stdio.h>
+#ifndef __KERNEL__
+// userspace
+# include <stdarg.h>
+# include <stdio.h>
 
-#ifdef __MINGW64__
-#ifndef uint64_t
-#define uint64_t UINT64
-#endif
-#ifndef int32_t
-#define int32_t INT32
-#endif
-#ifndef uint32_t
-#define uint32_t UINT32
-#endif
-#ifndef u_long
-#define u_long UINT64
-#endif
-#ifndef uint8_t
-#define uint8_t UINT8
-#endif
-#else 
-#include <stdint.h>
+# ifdef __MINGW64__
+#  ifndef uint64_t
+#   define uint64_t UINT64
+#  endif
+#  ifndef int32_t
+#   define int32_t INT32
+#  endif
+#  ifndef uint32_t
+#   define uint32_t UINT32
+#  endif
+#  ifndef u_long
+#   define u_long UINT64
+#  endif
+#  ifndef uint8_t
+#   define uint8_t UINT8
+#  endif
+# else
+#  include <stdint.h>
+# endif
+#else
+// Linux kernel
+# include <linux/stdarg.h>
+# include <linux/types.h>
 #endif
 
 #define HYPERCALL_KAFL_RAX_ID				0x01f
