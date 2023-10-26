@@ -30,7 +30,6 @@ $(LINUX_AGENT_BZIMAGE):
 	$(MAKE) -C $(LINUX_AGENT_DIR) x86_64_defconfig
 	cd $(LINUX_AGENT_DIR) && ./scripts/config --disable CONFIG_MODULE_SIG
 	cd $(LINUX_AGENT_DIR) && ./scripts/config --enable CONFIG_DEBUG_INFO_DWARF5
-	cd $(LINUX_AGENT_DIR) && ./scripts/config --enable CONFIG_FRAME_POINTER
 	cd $(LINUX_AGENT_DIR) && ./scripts/config --enable CONFIG_GDB_SCRIPTS
 ifdef DVKM_KASAN
 	cd $(LINUX_AGENT_DIR) && ./scripts/config --enable CONFIG_KASAN
