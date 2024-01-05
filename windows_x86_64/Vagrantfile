@@ -33,7 +33,8 @@ Vagrant.configure("2") do |config|
     end
 
     # workaround https://github.com/hashicorp/vagrant/issues/13193
-    config.vm.provision :host_shell do |host_shell|
-        host_shell.inline = "source ../venv/bin/activate && ./setup_target.sh -e target_harness=#{TARGET}"
+    config.trigger.after :provision do |trigger|
+        trigger.info = "Provisioning"
+        trigger.run = {inline: "bash -c 'source ../venv/bin/activate && ./setup_target.sh -e target_harness=#{TARGET}'"}
     end
 end
