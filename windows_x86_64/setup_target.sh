@@ -4,6 +4,9 @@
 
 ip_address=$(vagrant winrm-config | grep 'HostName' | head -1 | awk '{print $2}')
 
+# WinRM lib doesn't honor no_proxy
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
+
 ansible-playbook -i "${ip_address}," \
     -e ansible_connection=winrm \
     -e ansible_port=5985 \
