@@ -22,8 +22,9 @@ debug: $(TARGET)
 asan: CFLAGS += -g -O0 -DDEBUG -fsanitize=address,undefined
 asan: $(TARGET)
 
-$(TARGET): $(LIBNYX_AGENT_BUILD)
+
 $(TARGET): src/$(TARGET).c
+	$(MAKE) -C $(LIBNYX_AGENT_ROOT)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS)
 
 $(TARGET).cpio.gz: $(TARGET)

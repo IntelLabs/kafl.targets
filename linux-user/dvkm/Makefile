@@ -1,3 +1,7 @@
+ifndef KAFL_ROOT
+$(error KAFL_ROOT is not set. Run "make env" at kAFL root repositrory)
+endif
+
 MAKEF_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 # linux kafl agent
 LINUX_AGENT_DIR := ${EXAMPLES_ROOT}/linux-user/linux_kafl_agent
