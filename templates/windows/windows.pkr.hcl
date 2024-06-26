@@ -148,5 +148,6 @@ build {
   }
   post-processor "vagrant" {
     vagrantfile_template = "Vagrantfile_template"
+    output = "packer_{{.BuildName}}_{{.Provider}}.box"
   } 
 }
