@@ -2,7 +2,7 @@
   hosts: default
   vars:
     vsix_installer: "{{ ansible_env['ProgramFiles'] }}\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\VSIXInstaller.exe"
-    wdk_vsix_dir: "{{ ansible_env['ProgramFiles(x86)'] }}\\Windows Kits\\10\\Vsix\\VS2022\\10.0.26100.1\\amd64"
+    wdk_vsix_dir: "{{ ansible_env['ProgramFiles(x86)'] }}\\Windows Kits\\10\\Vsix\\VS2022\\10.0.26100.0\\amd64"
   tasks:
     # This should be set before running the win_inet_proxy module
     - name: Configure IE proxy settings to apply to all users
@@ -77,27 +77,15 @@
         dest: "{{ ansible_facts['env']['TEMP'] }}\\vs_community.exe"
 
     # https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-community?view=vs-2022&preserve-view=true
-    - name: Install Visual Studio community and compiler
+    - name: Install Windows11SDK 10.0.22621.0
       win_command:
-        # cmd: vs_community.exe --quiet --wait --norestart --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22000
-        cmd: vs_community.exe --quiet --wait --norestart --add Microsoft.VisualStudio.Workload.NativeDesktop --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+        cmd: vs_community.exe --quiet --wait --norestart --add Microsoft.VisualStudio.Workload.NativeDesktop --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621 --add Component.Microsoft.Windows.DriverKit
       args:
         chdir: "{{ ansible_facts['env']['TEMP'] }}"
 
-    - name: Download latest SDK
+    - name: Download latest WDK for 10.0.22621.0
       win_get_url:
-        url: https://go.microsoft.com/fwlink/?linkid=2237387
-        dest: "{{ ansible_facts['env']['TEMP'] }}\\sdk_setup.exe"
-
-    - name: Install latest SDK
-      win_command:
-        cmd: sdk_setup.exe /q /norestart
-      args:
-        chdir: "{{ ansible_facts['env']['TEMP'] }}"
-
-    - name: Download latest WDK
-      win_get_url:
-        url: https://go.microsoft.com/fwlink/?linkid=2272234
+        url: https://go.microsoft.com/fwlink/?linkid=2196230
         dest: "{{ ansible_facts['env']['TEMP'] }}\\wdk_setup.exe"
 
     - name: Install WDK
@@ -105,12 +93,6 @@
         cmd: wdk_setup.exe /q /norestart
       args:
         chdir: "{{ ansible_facts['env']['TEMP'] }}"
-
-    - name: install WDK VSIX extension
-      win_command:
-        cmd: "{{ vsix_installer | ansible.windows.quote }} /quiet /admin /logFile:C:\\wdk_vsix.log WDK.vsix"
-      args:
-        chdir: "{{ wdk_vsix_dir }}"
 
     - name: Enable Testsigning
       win_command: Bcdedit.exe -set TESTSIGNING ON
