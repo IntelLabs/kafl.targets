@@ -95,9 +95,9 @@ test "$#" -ge 1 || fatal "Need ad least one argument: <path/to/initrd.cpio.gz>"
 test -d "$TEMPLATE" || fatal "Could not find initrd template folder >>$TEMPLATE<<"
 
 BUSYBOX=$(which busybox) || fatal "Could not find busybox - try 'sudo apt install busybox-static'?"
-LDDTREE=$(which lddtree) || fatal "Could not find lddtree - try 'sudo apt install lddtree'?"
+FILEUTIL=$(which file) || fatal "Could not find file utility - try 'sudo apt install file'?"
 
-$LDDTREE $BUSYBOX |grep -q "interpreter => none" || fatal "Binary at $BUSYBOX is not static. Try 'apt install busybox-static'."
+$FILEUTIL $BUSYBOX |grep -q "statically linked" || fatal "Binary at $BUSYBOX is not static. Try 'apt install busybox-static'."
 
 TARGET_INITRD="$(realpath "$1")"; shift;
 TARGET_ROOT="$(mktemp -d)"
