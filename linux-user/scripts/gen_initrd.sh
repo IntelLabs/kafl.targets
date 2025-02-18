@@ -97,7 +97,7 @@ test -d "$TEMPLATE" || fatal "Could not find initrd template folder >>$TEMPLATE<
 BUSYBOX=$(which busybox) || fatal "Could not find busybox - try 'sudo apt install busybox-static'?"
 LDDTREE=$(which lddtree) || fatal "Could not find lddtree - try 'sudo apt install lddtree'?"
 
-$LDDTREE $BUSYBOX |grep -q "interpreter => none" || fatal "Binary at $BUSYBOX is not static. Try 'apt install busybox-static'."
+$LDDTREE $BUSYBOX |grep -qi "interpreter => none" || fatal "Binary at $BUSYBOX is not static. Try 'apt install busybox-static'."
 
 TARGET_INITRD="$(realpath "$1")"; shift;
 TARGET_ROOT="$(mktemp -d)"

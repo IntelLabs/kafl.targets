@@ -16,4 +16,6 @@ $(VMCALL_BIN):
 
 # gen_initrd.sh depends on vmcall
 $(TARGET): $(MAKEF_DIR)/gen_initrd.sh $(VMCALL_BIN) 
-	$< $@ $(VMCALL_BIN)
+	# Run gen_initrd.sh outside of the virtual environment
+	# lddtree is a python script that depends on globally installed packages
+	env -u VIRTUAL_ENV -u PATH $< $@ $(VMCALL_BIN)
