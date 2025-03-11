@@ -142,8 +142,7 @@ build {
     use_proxy = false
     extra_arguments = [
       "-e", "ansible_winrm_scheme=http",
-      "-e", "ansible_proxy=${var.https_proxy}",
-      "-v"
+      "-e", "ansible_proxy=${var.https_proxy}"
     ]
   }
   post-processor "vagrant" {
