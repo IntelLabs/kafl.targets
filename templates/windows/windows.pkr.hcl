@@ -118,7 +118,7 @@ source "qemu" "windows" {
   ]
   net_device       = "rtl8139"
   shutdown_command = "shutdown /s /t 10 /f /d p:4:1 /c \"Packer Shutdown\""
-  skip_compaction  = true
+  skip_compaction  = false
   vm_name          = "${var.vm_name}.qcow2"
   vnc_bind_address = "0.0.0.0"
   winrm_password   = "${var.winrm_password}"
