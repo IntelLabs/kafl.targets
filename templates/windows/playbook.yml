@@ -77,9 +77,27 @@
         dest: "{{ ansible_facts['env']['TEMP'] }}\\vs_community.exe"
 
     # https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-community?view=vs-2022&preserve-view=true
-    - name: Install Windows11SDK 10.0.22621.0
+    - name: Install Visual Studio Native Desktop Workload
       win_command:
-        cmd: vs_community.exe --quiet --wait --norestart --add Microsoft.VisualStudio.Workload.NativeDesktop --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621 --add Component.Microsoft.Windows.DriverKit
+        cmd: vs_community.exe --quiet --wait --norestart --add Microsoft.VisualStudio.Workload.NativeDesktop
+      args:
+        chdir: "{{ ansible_facts['env']['TEMP'] }}"
+
+    - name: Install Visual Studio VC Tools x86 x64
+      win_command:
+        cmd: vs_community.exe --quiet --wait --norestart --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+      args:
+        chdir: "{{ ansible_facts['env']['TEMP'] }}"
+
+    - name: Install Windows 11 SDK 10.0.22621.0
+      win_command:
+        cmd: vs_community.exe --quiet --wait --norestart --add Microsoft.VisualStudio.Component.Windows11SDK.22621
+      args:
+        chdir: "{{ ansible_facts['env']['TEMP'] }}"
+
+    - name: Install Windows Driver Kit
+      win_command:
+        cmd: vs_community.exe --quiet --wait --norestart --add Component.Microsoft.Windows.DriverKit
       args:
         chdir: "{{ ansible_facts['env']['TEMP'] }}"
 
