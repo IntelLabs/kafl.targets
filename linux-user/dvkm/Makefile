@@ -23,7 +23,7 @@ all: $(KAFL_INITRD_PATH) $(LINUX_AGENT_BZIMAGE) $(DVKM_PATH)
 
 clean:
 	$(MAKE) -C $(GEN_INITRD_DIR) $@
-	$(MAKE) -C $(DVKM_DIR) $@
+	$(MAKE) -C $(DVKM_DIR) KRN_SOURCES=$(LINUX_AGENT_DIR) $@
 	$(MAKE) -C $(LINUX_AGENT_DIR) $@
 
 fuzz: all
@@ -48,6 +48,6 @@ $(KAFL_INITRD_PATH):
 
 # how to build dvkm.ko
 $(DVKM_PATH):
-	cd $(DVKM_DIR) && KRN_SOURCES=$(LINUX_AGENT_DIR) $(MAKE)
+	$(MAKE) -C $(DVKM_DIR) KRN_SOURCES=$(LINUX_AGENT_DIR)
 
 .PHONY: clean fuzz
