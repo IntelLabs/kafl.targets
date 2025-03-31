@@ -1,5 +1,8 @@
 #!/bin/sh
 
+set -e
+set -x
+
 echo "Hello from agent.sh" | vmcall hcat
 
 echo "Checking host config.." | vmcall hcat
