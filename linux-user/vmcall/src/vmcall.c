@@ -81,7 +81,7 @@ static int cmd_hcat(int argc, char **argv)
 	}
 
 	debug_printf("[hcat]  %zd bytes written.\n", written);
-	return (written > 0);
+	return !(written > 0);
 }
 
 static int cmd_habort(int argc, char **argv)
