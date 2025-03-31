@@ -9,6 +9,7 @@ all: $(TARGET)
 
 clean:
 	rm -f $(TARGET)
+	rm -rf $(MAKEF_DIR)/modules
 
 # build vmcall if needed
 $(VMCALL_BIN):
