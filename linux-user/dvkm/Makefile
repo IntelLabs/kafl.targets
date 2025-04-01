@@ -8,6 +8,7 @@ MAKEF_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 EXAMPLES_ROOT := $(KAFL_ROOT)/examples
 LINUX_AGENT_DIR := $(EXAMPLES_ROOT)/linux-user/linux_kafl_agent
 GEN_INITRD_DIR := $(EXAMPLES_ROOT)/linux-user/scripts
+INITRD_MODULES_STAGING_DIR := $(GEN_INITRD_DIR)/modules
 DVKM_DIR := $(MAKEF_DIR)/Damn_Vulnerable_Kernel_Module
 
 # Artifacts
@@ -38,8 +39,11 @@ $(LINUX_AGENT_BZIMAGE):
 	$(MAKE) -C $(LINUX_AGENT_DIR) olddefconfig
 	$(MAKE) -C $(LINUX_AGENT_DIR) -j $(shell nproc)
 
+modules: $(LINUX_AGENT_BZIMAGE)
+	$(MAKE) -C $(LINUX_AGENT_DIR) modules_install INSTALL_MOD_PATH=$(INITRD_MODULES_STAGING_DIR)
+
 # Build initrd
-$(KAFL_INITRD_PATH):
+$(KAFL_INITRD_PATH): modules
 	$(MAKE) -C $(GEN_INITRD_DIR)
 
 # Build dvkm.ko (and test_dvkm)

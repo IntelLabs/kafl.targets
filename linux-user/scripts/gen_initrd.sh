@@ -18,8 +18,10 @@
 set -e
 set -u
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 SCRIPT_ROOT=$EXAMPLES_ROOT/linux-user
 TEMPLATE=$SCRIPT_ROOT/initrd_template
+MODULES_STAGING_DIR=$SCRIPT_DIR/modules
 
 fatal() {
 	echo
@@ -76,6 +78,11 @@ function inject_files()
 		echo "Install $dep => $TARGET_ROOT/$dep"
 		install -D "$dep" $TARGET_ROOT/"$dep"
 	done
+
+	if [ -d "$MODULES_STAGING_DIR" ]; then
+		echo "[*] Copying modules..."
+		rsync -av "$MODULES_STAGING_DIR/" "$TARGET_ROOT/"
+	fi
 }
 
 function build_image()
