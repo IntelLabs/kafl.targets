@@ -2,3 +2,8 @@
 sharedir/dvkm.ko
 sharedir/fuzz_dvkm
 
+Module.symvers
+modules.order
+.modules.order.cmd
+.Module.symvers.cmd
+
