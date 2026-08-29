@@ -11,72 +11,11 @@ SCRIPT_ROOT="$(dirname "$(realpath "$0")")"
 
 KAFL_OPTS="-p $(nproc) --grimoire --redqueen -t 1 -ts 0.05"
 
-# recent Zephyr uses qemu -icount and fails to boot with -enable-kvm
-#ZEPHYR_VERSION="v2.4.0"
-ZEPHYR_VERSION="v2.3.0"
-
-# default toolchain setup
-SDK_URL="https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.11.3/zephyr-sdk-0.11.3-setup.run"
-export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
-export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk/
-export ZEPHYR_ROOT=$WORKSPACE/zephyrproject
-
 function fail {
 	echo
 	echo -e "$1"
 	echo
 	exit 1
-}
-
-function fetch_zephyr() {
-	if test -d "$ZEPHYR_BASE"; then
-	   echo "ZEPHYR_BASE is already set. Skipping install."
-	   return
-	fi
-
-	echo -e "\nAttempting to fetch Zephyr and dependencies using sudo apt, west and pip3.\n\n\tHit Enter to continue or ctrl-c to abort."
-	read
-	echo "[*] Fetching dependencies.. (sudo apt)"
-	# https://docs.zephyrproject.org/latest/getting_started/installation_linux.html
-	sudo apt-get update
-	sudo apt-get upgrade
-	sudo apt-get install --no-install-recommends \
-		git cmake ninja-build gperf ccache dfu-util \
-		device-tree-compiler wget python3-pip python3-setuptools \
-		python3-wheel python3-yaml xz-utils file make gcc gcc-multilib
-
-	# missing deps on Ubuntu?
-	sudo apt-get install python3-pyelftools
-
-	echo "[-] Fetching Zephyr components to $ZEPHYR_ROOT"
-	pip3 install west
-	which west || fail "Error: ~/.local/bin not in \$PATH?"
-	pushd $(dirname $ZEPHYR_ROOT)
-	west init --mr $ZEPHYR_VERSION $(basename $ZEPHYR_ROOT)
-	cd zephyrproject
-	west update
-	pip3 install -r zephyr/scripts/requirements.txt
-	popd
-}
-
-function fetch_sdk() {
-	if test -d "$ZEPHYR_SDK_INSTALL_DIR"; then
-		echo "ZEPHYR_SDK_INSTALL_DIR is already set. Skipping install."
-		return
-	fi
-
-	# Download Zephyr SDK. Not pretty.
-	INSTALLER=$ZEPHYR_ROOT/$(basename $SDK_URL)
-
-	echo -e "\nAttempting to fetch and execute Zephyr SDK installer from\n$SDK_URL\n\n\tHit Enter to continue or ctrl-c to abort."
-	read
-	wget -c -O $INSTALLER $SDK_URL
-	bash $INSTALLER
-}
-
-function source_env() {
-	# source if available, complain only if needed
-	test -f "$ZEPHYR_ROOT/zephyr/zephyr-env.sh" && source $ZEPHYR_ROOT/zephyr/zephyr-env.sh
 }
 
 function check_deps() {
@@ -100,14 +39,7 @@ function build_app() {
 	# select target app / variant
 	APP=$1; shift
 
-	pushd $SCRIPT_ROOT
-	test -d build && rm -rf build
-   	mkdir build || fail "Could not create build/ directory. Exit."
-	cd build
-	#cmake -GNinja -DBOARD=qemu_x86_64 -DKAFL_${APP}=y ..
-	cmake -GNinja -DBOARD=qemu_x86 -DKAFL_${APP}=y ..
-	ninja
-	popd
+	west build -p -b qemu_x86 $SCRIPT_ROOT -d ${SCRIPT_ROOT}/build -- -DKAFL_${APP}=y
 }
 
 function fuzz() {
@@ -218,7 +150,6 @@ function usage() {
 	echo "Usage: $0 <cmd> <args>"
 	echo
 	echo Available commands:
-	echo -e "\tzephyr                - install Zephyr SDK, or display detected setup"
 	echo -e "\tbuild <TEST|JSON|FS>  - build the test, json or fs fuzzing sample"
 	echo -e "\tfuzz [args]           - fuzz the currently build sample with optional kAFL args"
 	echo -e "\tnoise <input>         - execute input many times and monitor coverage"
@@ -228,17 +159,9 @@ function usage() {
 	exit
 }
 
-
 CMD=$1; shift || usage
 
-source_env
-
 case $CMD in
-	"zephyr")
-		fetch_zephyr
-		fetch_sdk
-		check_deps
-		;;
 	"fuzz")
 		fuzz $*
 		;;
