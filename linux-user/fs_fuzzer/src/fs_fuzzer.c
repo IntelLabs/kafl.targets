@@ -26,6 +26,7 @@
 
 #include "nyx_api.h"
 #include "nyx_agent.h"
+#include "kcov.h"
 
 #define PAGE_SIZE 4096
 #define KAFL_TMP_FILE "/tmp/trash"
@@ -165,6 +166,7 @@ int main(int argc, char **argv)
 	while (1) {
 		static unsigned long mountflags = 0;
 
+		kcov_reset();
 
 		if ((size_t)pbuf->size > sizeof(mountflags)) {
 			//memcpy(&mountflags, pbuf->data, sizeof(mountflags));
@@ -192,6 +194,7 @@ int main(int argc, char **argv)
 				umount2("/tmp/a", MNT_FORCE);
 			}
 		}
+		kcov_collect();
 
 		// first round for warmup - real start now
 		kAFL_hypercall(HYPERCALL_KAFL_RELEASE, 0);
@@ -200,6 +203,7 @@ int main(int argc, char **argv)
 
 	}
 
+	kcov_cleanup();
 	close(backingfile);
 	return 0;
 }
